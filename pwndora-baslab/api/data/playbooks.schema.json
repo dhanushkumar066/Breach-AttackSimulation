@@ -1,0 +1,225 @@
+{
+  "$defs": {
+    "LogEntry": {
+      "additionalProperties": false,
+      "description": "One simulated log record. IIS W3SVC access-log rows use event_id 0 because access logs are not EVTX records.",
+      "properties": {
+        "channel": {
+          "enum": [
+            "Security",
+            "Microsoft-Windows-Sysmon/Operational",
+            "Microsoft-IIS-Logging/Logs"
+          ],
+          "title": "Channel",
+          "type": "string"
+        },
+        "event_id": {
+          "maximum": 65535,
+          "minimum": 0,
+          "title": "Event Id",
+          "type": "integer"
+        },
+        "timestamp": {
+          "minLength": 1,
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "computer": {
+          "minLength": 1,
+          "title": "Computer",
+          "type": "string"
+        },
+        "fields": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "minProperties": 1,
+          "title": "Fields",
+          "type": "object"
+        }
+      },
+      "required": [
+        "channel",
+        "event_id",
+        "timestamp",
+        "computer",
+        "fields"
+      ],
+      "title": "LogEntry",
+      "type": "object"
+    },
+    "Playbook": {
+      "additionalProperties": false,
+      "description": "A complete attack simulation: ordered techniques plus campaign metadata.",
+      "properties": {
+        "playbook_id": {
+          "minLength": 1,
+          "title": "Playbook Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "threat_actor": {
+          "minLength": 1,
+          "title": "Threat Actor",
+          "type": "string"
+        },
+        "difficulty": {
+          "enum": [
+            "Easy",
+            "Moderate",
+            "Hard"
+          ],
+          "title": "Difficulty",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "techniques": {
+          "items": {
+            "$ref": "#/$defs/Technique"
+          },
+          "minItems": 1,
+          "title": "Techniques",
+          "type": "array"
+        }
+      },
+      "required": [
+        "playbook_id",
+        "name",
+        "threat_actor",
+        "difficulty",
+        "description",
+        "techniques"
+      ],
+      "title": "Playbook",
+      "type": "object"
+    },
+    "Technique": {
+      "additionalProperties": false,
+      "description": "One kill-chain step. Additional rules enforced by PlaybookCatalog.load(): (1) technique_id must exist in enterprise-attack-techniques.json so the learner can select it; (2) reference_indicators and red_herring_indicators must be disjoint; (3) sigma_rule_yaml must parse as YAML and carry both an 'id' and a 'detection' block; (4) no log_evidence field value may contain the technique's own id or an ATT&CK rule tag, which would reveal the answer.",
+      "properties": {
+        "technique_id": {
+          "pattern": "^T\\d{4}(\\.\\d{3})?$",
+          "title": "Technique Id",
+          "type": "string"
+        },
+        "technique_name": {
+          "minLength": 1,
+          "title": "Technique Name",
+          "type": "string"
+        },
+        "tactic": {
+          "minLength": 1,
+          "title": "Tactic",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "log_evidence": {
+          "items": {
+            "$ref": "#/$defs/LogEntry"
+          },
+          "minItems": 1,
+          "title": "Log Evidence",
+          "type": "array"
+        },
+        "reference_indicators": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 3,
+          "title": "Reference Indicators",
+          "type": "array"
+        },
+        "red_herring_indicators": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 2,
+          "title": "Red Herring Indicators",
+          "type": "array"
+        },
+        "correct_response_action": {
+          "minLength": 1,
+          "title": "Correct Response Action",
+          "type": "string",
+          "enum": [
+            "Isolate Host",
+            "Block IP/Domain",
+            "Kill Process",
+            "Revoke Credentials",
+            "Alert SOC Only",
+            "Quarantine File",
+            "No Action Required"
+          ]
+        },
+        "sigma_rule_yaml": {
+          "minLength": 1,
+          "title": "Sigma Rule Yaml",
+          "type": "string"
+        }
+      },
+      "required": [
+        "technique_id",
+        "technique_name",
+        "tactic",
+        "description",
+        "log_evidence",
+        "reference_indicators",
+        "red_herring_indicators",
+        "correct_response_action",
+        "sigma_rule_yaml"
+      ],
+      "title": "Technique",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Schema for api/data/playbooks.json. Generated from the Pydantic v2 models in api/models/playbook.py — the same models the API validates against at startup, so the schema and the runtime contract cannot drift. Regenerate with python api/data/build_playbook_schema.py",
+  "properties": {
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source": {
+      "title": "Source",
+      "type": "string"
+    },
+    "response_actions": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Response Actions",
+      "type": "array"
+    },
+    "playbooks": {
+      "items": {
+        "$ref": "#/$defs/Playbook"
+      },
+      "minItems": 1,
+      "title": "Playbooks",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "source",
+    "response_actions",
+    "playbooks"
+  ],
+  "title": "PWNDORA BASLab Playbook Library",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pwndora.net/schemas/baslab/playbooks.schema.json"
+}

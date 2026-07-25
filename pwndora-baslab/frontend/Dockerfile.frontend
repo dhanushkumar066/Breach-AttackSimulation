@@ -1,0 +1,27 @@
+# PWNDORA BASLab — frontend service (Vite build → nginx static serve + /api proxy)
+# Build context is the repository root: docker build -f frontend/Dockerfile.frontend .
+
+# ---- Stage 1: build ---------------------------------------------------------
+FROM node:20-alpine AS build
+
+WORKDIR /build
+
+# Lockfile-free install kept deterministic by the pinned ranges in package.json.
+COPY frontend/package.json ./package.json
+RUN npm install --no-audit --no-fund
+
+COPY frontend/ ./
+RUN npm run build
+
+# ---- Stage 2: serve ---------------------------------------------------------
+FROM nginx:alpine
+
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /build/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=6 \
+    CMD wget -q -O /dev/null http://127.0.0.1/ || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

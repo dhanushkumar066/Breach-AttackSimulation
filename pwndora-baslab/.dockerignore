@@ -1,0 +1,14 @@
+# Keep the build context small so `docker compose up --build` stays well under
+# the 90-second target: node_modules alone is ~250 packages.
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+.git
+.gitignore
+.claude
+*.md
+!README.md

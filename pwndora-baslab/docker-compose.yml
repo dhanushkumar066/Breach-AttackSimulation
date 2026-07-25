@@ -1,0 +1,57 @@
+# PWNDORA BASLab — Breach & Attack Simulation Training Module
+# Track T-03 EPME · Problem Statement BSCDS26-EPME-02
+#
+#   docker compose up --build
+#
+# Frontend: http://localhost:3000     API: http://localhost:8000/docs
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile.api
+    container_name: baslab-api
+    ports:
+      - '8000:8000'
+    environment:
+      # Explicit origins only — the API refuses to start with a wildcard.
+      BASLAB_CORS_ORIGINS: 'http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173'
+      BASLAB_LOG_LEVEL: 'INFO'
+    volumes:
+      # Playbook content is editable without a rebuild; read-only so a running
+      # container can never rewrite its own answer key.
+      - ./api/data:/app/api/data:ro
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2).status == 200 else 1)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile.frontend
+    container_name: baslab-frontend
+    ports:
+      - '3000:80'
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1/']
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
+    restart: unless-stopped
+
+# No volumes, no database, no external network: every byte the module serves is
+# bundled in the image.
