@@ -36,7 +36,8 @@ Base path `/api`. Every endpoint is JSON in / JSON out, no authentication of its
 | 10 | `POST` | `/api/session/{id}/advance` | Next step, or completion |
 | 11 | `GET` | `/api/session/{id}/report` | Control Effectiveness Report |
 | 12 | `GET` | `/api/session/{id}/export/riskview360` | RiskView360 JSON export |
-| 13 | `GET` | `/api/session/{id}/comparison?compare_with={id}` | Run-over-run delta |
+| 13 | `GET` | `/api/session/{id}/replay` | Kill-chain replay of how the attack unfolded |
+| 14 | `GET` | `/api/session/{id}/comparison?compare_with={id}` | Run-over-run delta |
 
 Interactive OpenAPI at `/docs`; the machine-readable schema at `/openapi.json` can be
 fed straight into PWNDORA's API gateway registry.

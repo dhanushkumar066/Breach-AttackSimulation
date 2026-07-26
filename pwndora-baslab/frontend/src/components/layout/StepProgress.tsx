@@ -30,9 +30,9 @@ export function StepProgress() {
 
   return (
     <div className="glass-panel px-4 py-3 sm:px-5">
-      <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-800/70">
+      <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800/70">
         <motion.div
-          className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400"
+          className="h-full rounded-full bg-gradient-to-r from-brand-blue to-emerald-500 dark:from-brand-cyan dark:to-emerald-400"
           initial={false}
           animate={{ width: `${percent}%` }}
           transition={{ duration: 0.55, ease: 'easeOut' }}
@@ -53,7 +53,7 @@ export function StepProgress() {
                       ? markerTone(result.step_score)
                       : isCurrent
                         ? 'border-cyan-400 bg-cyan-500/20 text-cyan-300 animate-pulse-glow'
-                        : 'border-slate-700 bg-slate-800/50 text-slate-600',
+                        : 'border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-600',
                   )}
                   aria-label={
                     result
@@ -67,11 +67,11 @@ export function StepProgress() {
                 </span>
                 <span className="text-[11px] font-medium">
                   {result ? (
-                    <span className="text-slate-400">{result.tactic}</span>
+                    <span className="text-slate-600 dark:text-slate-400">{result.tactic}</span>
                   ) : isCurrent ? (
                     <span className="text-cyan-400">Analysing…</span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-slate-700">
+                    <span className="inline-flex items-center gap-1 text-slate-400 dark:text-slate-600">
                       <Lock className="h-3 w-3" aria-hidden />
                       Locked
                     </span>
@@ -84,7 +84,7 @@ export function StepProgress() {
 
         <div className="shrink-0 text-right">
           <div className="section-label">Session score</div>
-          <div className="font-mono text-lg font-bold tabular-nums text-emerald-300">
+          <div className="font-mono text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-300">
             {runningScore.toFixed(2)}
           </div>
         </div>

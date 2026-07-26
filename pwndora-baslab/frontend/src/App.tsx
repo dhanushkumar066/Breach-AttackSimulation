@@ -3,10 +3,11 @@ import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-d
 
 import { BASSession } from '@/pages/BASSession';
 import { PlaybookSelector } from '@/pages/PlaybookSelector';
+import { WelcomePage } from '@/pages/WelcomePage';
 
 // The report and comparison views pull in recharts and the syntax highlighter.
-// Loading them on demand keeps the playbook library and the session console —
-// the two screens a learner actually starts on — off the critical path.
+// Loading them on demand keeps the welcome screen, playbook library and session
+// console — the screens a learner actually starts on — off the critical path.
 const ReportPage = lazy(() => import('@/pages/ReportPage').then((m) => ({ default: m.ReportPage })));
 const ComparisonPage = lazy(() =>
   import('@/pages/ComparisonPage').then((m) => ({ default: m.ComparisonPage })),
@@ -25,7 +26,8 @@ export default function App() {
     <Router>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          <Route path="/" element={<PlaybookSelector />} />
+          <Route path="/" element={<WelcomePage />} />
+          <Route path="/playbooks" element={<PlaybookSelector />} />
           <Route path="/session" element={<BASSession />} />
           <Route path="/report" element={<ReportPage />} />
           <Route path="/comparison" element={<ComparisonPage />} />

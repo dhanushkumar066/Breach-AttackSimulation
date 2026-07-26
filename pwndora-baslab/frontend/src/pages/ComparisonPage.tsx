@@ -19,7 +19,7 @@ export function ComparisonPage() {
 
   useEffect(() => {
     if (!sessionId || !baseSessionId) {
-      navigate('/', { replace: true });
+      navigate('/playbooks', { replace: true });
       return;
     }
     // Run 1 is the base session, run 2 is the run just completed.
@@ -40,7 +40,7 @@ export function ComparisonPage() {
               <GitCompareArrows className="h-3.5 w-3.5" aria-hidden />
               Playbook comparison
             </div>
-            <h1 className="mt-1 text-3xl font-bold text-slate-50">
+            <h1 className="mt-1 text-3xl font-bold text-slate-900 dark:text-slate-50">
               {comparison?.playbook_name ?? 'Run comparison'}
             </h1>
             {comparison ? (
@@ -68,7 +68,7 @@ export function ComparisonPage() {
 
         {loading || !comparison ? (
           <GlassPanel className="p-8 text-center">
-            <p className="animate-pulse text-sm text-slate-400">Comparing runs…</p>
+            <p className="animate-pulse text-sm text-slate-600 dark:text-slate-400">Comparing runs…</p>
           </GlassPanel>
         ) : (
           <ComparisonPanel comparison={comparison} />

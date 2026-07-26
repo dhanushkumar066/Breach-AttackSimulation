@@ -58,6 +58,12 @@ class Technique(BaseModel):
     correct_response_action: str = Field(min_length=1)
     sigma_rule_yaml: str = Field(min_length=1)
 
+    # --- Coaching content (revealed with the rest of the answer key) ----------
+    #: Why the correct containment action is the right one for this stage.
+    response_rationale: str = Field(min_length=1)
+    #: Why each decoy misleads, keyed by the exact red-herring text.
+    red_herring_explanations: dict[str, str] = Field(default_factory=dict)
+
     @property
     def sigma_rule_title(self) -> str:
         """The ``title:`` line of the bundled Sigma rule, without parsing YAML."""

@@ -1,17 +1,75 @@
-import { AnimatePresence, motion } from 'framer-motion';
-import { Braces, FileTerminal, Globe, ShieldAlert } from 'lucide-react';
+import { Braces, Check, ChevronDown, Copy, FileTerminal, Globe, ShieldAlert } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
-import json from 'react-syntax-highlighter/dist/esm/languages/prism/json';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 import { cn } from '@/lib/cn';
 import type { LogChannel, LogEntry } from '@/types/baslab';
 
-// See SigmaViewer: only the grammars actually used are registered.
-SyntaxHighlighter.registerLanguage('json', json);
+/** Official Windows / Sysmon event descriptions, so the summary line reads like a SIEM. */
+const EVENT_TITLES: Record<string, string> = {
+  'Security:4624': 'An account was successfully logged on.',
+  'Security:4625': 'An account failed to log on.',
+  'Security:4656': 'A handle to an object was requested.',
+  'Security:4663': 'An attempt was made to access an object.',
+  'Security:4672': 'Special privileges assigned to new logon.',
+  'Security:4688': 'A new process has been created.',
+  'Security:4769': 'A Kerberos service ticket was requested.',
+  'Security:5140': 'A network share object was accessed.',
+  'Security:7045': 'A new service was installed in the system.',
+  'Sysmon:1': 'Process creation.',
+  'Sysmon:3': 'Network connection detected.',
+  'Sysmon:7': 'Image loaded.',
+  'Sysmon:8': 'CreateRemoteThread detected.',
+  'Sysmon:10': 'Process accessed.',
+  'Sysmon:11': 'File created.',
+  'Sysmon:13': 'Registry value set.',
+};
 
-/** Field names worth pulling the eye to first. */
+/** Severity tone per event, matching how a SOC console colours its stream. */
+const EVENT_TONE: Record<string, 'info' | 'warn' | 'crit'> = {
+  'Security:4624': 'info',
+  'Security:4625': 'crit',
+  'Security:4656': 'crit',
+  'Security:4663': 'warn',
+  'Security:4672': 'warn',
+  'Security:4688': 'info',
+  'Security:4769': 'warn',
+  'Security:5140': 'warn',
+  'Security:7045': 'crit',
+  'Sysmon:1': 'info',
+  'Sysmon:3': 'warn',
+  'Sysmon:7': 'info',
+  'Sysmon:8': 'crit',
+  'Sysmon:10': 'crit',
+  'Sysmon:11': 'warn',
+  'Sysmon:13': 'warn',
+};
+
+const TONE_CLASS = {
+  info: 'bg-emerald-500/20 text-emerald-400',
+  warn: 'bg-yellow-500/20 text-yellow-400',
+  crit: 'bg-red-500/20 text-red-400',
+} as const;
+
+/** Fields worth surfacing on the collapsed summary line, in priority order. */
+const SUMMARY_FIELDS = [
+  'CommandLine',
+  'TargetImage',
+  'TargetFilename',
+  'TargetObject',
+  'ObjectName',
+  'ShareName',
+  'ServiceName',
+  'TargetUserName',
+  'SubjectUserName',
+  'DestinationIp',
+  'GrantedAccess',
+  'LogonType',
+  'uri',
+  'src_ip',
+  'Image',
+  'User',
+];
+
 const CRITICAL_FIELDS = new Set([
   'CommandLine',
   'ParentCommandLine',
@@ -39,7 +97,6 @@ const CRITICAL_FIELDS = new Set([
   'src_ip',
 ]);
 
-/** Substrings that mark a value as adversary-relevant rather than routine. */
 const SUSPICIOUS_PATTERNS: RegExp[] = [
   /-enc\b/i,
   /-encodedcommand/i,
@@ -74,9 +131,9 @@ const SUSPICIOUS_PATTERNS: RegExp[] = [
 ];
 
 const CHANNEL_LABEL: Record<LogChannel, string> = {
-  Security: 'Windows Security',
-  'Microsoft-Windows-Sysmon/Operational': 'Sysmon',
-  'Microsoft-IIS-Logging/Logs': 'IIS / Web Access',
+  Security: 'WINDOWS SECURITY',
+  'Microsoft-Windows-Sysmon/Operational': 'SYSMON',
+  'Microsoft-IIS-Logging/Logs': 'NETWORK TRAFFIC',
 };
 
 const CHANNEL_ORDER: LogChannel[] = [
@@ -91,6 +148,40 @@ const CHANNEL_ICON: Record<LogChannel, typeof ShieldAlert> = {
   'Microsoft-IIS-Logging/Logs': Globe,
 };
 
+function eventKey(entry: LogEntry): string {
+  if (entry.channel === 'Security') return `Security:${entry.event_id}`;
+  if (entry.channel === 'Microsoft-Windows-Sysmon/Operational') return `Sysmon:${entry.event_id}`;
+  return 'IIS';
+}
+
+function eventTitle(entry: LogEntry): string {
+  if (entry.channel === 'Microsoft-IIS-Logging/Logs') {
+    const method = entry.fields.method ?? 'GET';
+    const status = entry.fields.status ?? '';
+    return `HTTP ${method} request served with status ${status}.`;
+  }
+  return EVENT_TITLES[eventKey(entry)] ?? 'Event recorded.';
+}
+
+function eventBadge(entry: LogEntry): { label: string; tone: 'info' | 'warn' | 'crit' } {
+  if (entry.channel === 'Microsoft-IIS-Logging/Logs') {
+    const status = entry.fields.status ?? '';
+    return { label: 'W3SVC ACCESS', tone: status.startsWith('2') ? 'warn' : 'info' };
+  }
+  return { label: `EVENT ${entry.event_id}`, tone: EVENT_TONE[eventKey(entry)] ?? 'info' };
+}
+
+function summaryLine(entry: LogEntry): string {
+  const parts: string[] = [];
+  for (const field of SUMMARY_FIELDS) {
+    const value = entry.fields[field];
+    if (!value) continue;
+    parts.push(`${field}: ${value.length > 64 ? `${value.slice(0, 63)}…` : value}`);
+    if (parts.length === 3) break;
+  }
+  return parts.join('  |  ');
+}
+
 function isSuspicious(value: string): boolean {
   return SUSPICIOUS_PATTERNS.some((pattern) => pattern.test(value));
 }
@@ -98,54 +189,98 @@ function isSuspicious(value: string): boolean {
 function formatTimestamp(iso: string): string {
   const parsed = new Date(iso);
   if (Number.isNaN(parsed.getTime())) return iso;
-  return parsed.toISOString().replace('T', ' ').replace('Z', 'Z');
+  return parsed.toISOString().replace('T', ' ').replace('Z', '');
 }
 
-function EventBadge({ entry }: { entry: LogEntry }) {
-  if (entry.channel === 'Microsoft-IIS-Logging/Logs') {
-    return (
-      <span className="rounded border border-fuchsia-500/40 bg-fuchsia-500/10 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-fuchsia-300">
-        W3SVC ACCESS
-      </span>
-    );
+function LogRecord({ entry, expanded, onToggle }: { entry: LogEntry; expanded: boolean; onToggle: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const badge = eventBadge(entry);
+
+  async function copyRaw(event: React.MouseEvent) {
+    event.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(entry, null, 2));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
   }
-  return (
-    <span className="rounded border border-cyan-500/40 bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-cyan-300">
-      EID {entry.event_id}
-    </span>
-  );
-}
 
-function LogCard({ entry, startLine }: { entry: LogEntry; startLine: number }) {
-  const rows = Object.entries(entry.fields);
   return (
-    <article className="rounded-lg border border-slate-700/50 bg-slate-950/50 transition-colors hover:border-cyan-500/30">
-      <header className="flex flex-wrap items-center gap-2 border-b border-slate-700/50 px-3 py-2">
-        <EventBadge entry={entry} />
-        <span className="log-mono text-[11px] text-slate-400">{formatTimestamp(entry.timestamp)}</span>
-        <span className="ml-auto log-mono text-[11px] font-semibold text-slate-300">
-          {entry.computer}
-        </span>
-      </header>
-      <div className="log-mono px-2 py-2">
-        {rows.map(([key, value], index) => (
-          <div key={key} className="flex items-start hover:bg-slate-800/40">
-            <span className="log-line-number">{startLine + index}</span>
-            <span
-              className={cn(
-                'shrink-0 pr-2',
-                CRITICAL_FIELDS.has(key) ? 'log-key-critical' : 'log-key',
-              )}
-            >
-              {key}:
-            </span>
-            <span className={cn(isSuspicious(value) ? 'log-value-suspicious' : 'log-value')}>
-              {value}
-            </span>
-          </div>
-        ))}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
+      className={cn(
+        'group flex cursor-pointer flex-col rounded border p-2 transition-all',
+        expanded
+          ? 'border-brand-cyan/20 bg-brand-cyan/5 shadow-[0_0_15px_rgba(6,182,212,0.05)]'
+          : 'border-transparent hover:border-white/10 hover:bg-white/5',
+      )}
+    >
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+          <span className="text-[#849495]">[{formatTimestamp(entry.timestamp)}]</span>
+          <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold', TONE_CLASS[badge.tone])}>
+            {badge.label}
+          </span>
+          <span className="font-bold text-white">{eventTitle(entry)}</span>
+        </div>
+
+        {expanded ? (
+          <button
+            type="button"
+            onClick={copyRaw}
+            className="flex shrink-0 items-center gap-1 rounded bg-brand-cyan/20 px-2 py-1 text-[10px] font-bold text-brand-cyan transition-all hover:bg-brand-cyan/30 active:scale-95"
+          >
+            {copied ? <Check className="h-3 w-3" aria-hidden /> : <Copy className="h-3 w-3" aria-hidden />}
+            {copied ? 'COPIED' : 'COPY RAW'}
+          </button>
+        ) : (
+          <ChevronDown
+            className="h-4 w-4 shrink-0 text-[#849495] transition-colors group-hover:text-brand-cyan"
+            aria-hidden
+          />
+        )}
       </div>
-    </article>
+
+      {expanded ? (
+        <div className="mt-1 overflow-x-auto rounded border border-white/5 bg-black/40 p-3">
+          <div className="space-y-0.5">
+            <div>
+              <span className="log-key-critical">Computer</span>
+              <span className="text-[#849495]">: </span>
+              <span className="log-value">{entry.computer}</span>
+            </div>
+            <div>
+              <span className="log-key-critical">Channel</span>
+              <span className="text-[#849495]">: </span>
+              <span className="log-value">{entry.channel}</span>
+            </div>
+            {Object.entries(entry.fields).map(([key, value]) => (
+              <div key={key} className="flex flex-wrap">
+                <span className={CRITICAL_FIELDS.has(key) ? 'log-key-critical' : 'log-key'}>{key}</span>
+                <span className="text-[#849495]">:&nbsp;</span>
+                <span className={isSuspicious(value) ? 'log-value-suspicious' : 'log-value'}>
+                  {value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="ml-2 border-l border-white/10 py-1 pl-4 text-[#849495]">
+          {summaryLine(entry) || entry.computer}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -154,7 +289,7 @@ interface LogViewerProps {
   stepNumber: number;
 }
 
-/** Three-way log console: Windows Security, Sysmon (plus IIS when present) and Raw JSON. */
+/** Forensic log terminal: channel tabs, expandable records, raw JSON. */
 export function LogViewer({ logEvidence, stepNumber }: LogViewerProps) {
   const channels = useMemo(
     () => CHANNEL_ORDER.filter((channel) => logEvidence.some((e) => e.channel === channel)),
@@ -163,105 +298,88 @@ export function LogViewer({ logEvidence, stepNumber }: LogViewerProps) {
 
   type Tab = LogChannel | 'raw';
   const [tab, setTab] = useState<Tab>(channels[0] ?? 'raw');
+  const [expanded, setExpanded] = useState<number | null>(0);
 
-  // A new step can carry a different mix of channels; keep the tab valid.
+  // A new step can carry a different mix of channels; keep the tab valid and
+  // re-open the first record so the analyst always lands on readable detail.
   useEffect(() => {
     setTab(channels[0] ?? 'raw');
+    setExpanded(0);
   }, [channels, stepNumber]);
 
   const visible = tab === 'raw' ? logEvidence : logEvidence.filter((e) => e.channel === tab);
 
-  let lineCursor = 1;
-
   return (
-    <section className="glass-panel flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-cyan-500/15 px-4 py-3">
-        <div>
-          <h2 className="text-sm font-bold tracking-wide text-slate-100">Log Evidence</h2>
-          <p className="text-[11px] text-slate-500">
-            {logEvidence.length} record{logEvidence.length === 1 ? '' : 's'} captured for this stage
-          </p>
+    <section className="glass-panel flex h-full min-h-0 flex-col overflow-hidden p-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-2">
+        <div className="flex flex-wrap gap-4">
+          {channels.map((channel) => {
+            const Icon = CHANNEL_ICON[channel];
+            const count = logEvidence.filter((e) => e.channel === channel).length;
+            return (
+              <button
+                key={channel}
+                type="button"
+                role="tab"
+                aria-selected={tab === channel}
+                onClick={() => setTab(channel)}
+                className={cn(
+                  'label-caps flex items-center gap-1.5 pb-2 transition-all',
+                  tab === channel
+                    ? 'tab-active'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white',
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" aria-hidden />
+                {CHANNEL_LABEL[channel]}
+                <span className="text-[10px] opacity-60">({count})</span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'raw'}
+            onClick={() => setTab('raw')}
+            className={cn(
+              'label-caps flex items-center gap-1.5 pb-2 transition-all',
+              tab === 'raw'
+                ? 'tab-active'
+                : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white',
+            )}
+          >
+            <Braces className="h-3.5 w-3.5" aria-hidden />
+            RAW JSON
+          </button>
         </div>
-        <span className="rounded-md border border-slate-600/50 px-2 py-1 log-mono text-[11px] text-slate-400">
-          STEP {stepNumber}
-        </span>
+
+        <div className="flex items-center gap-2">
+          <span className="label-caps text-[10px] text-slate-500 dark:text-slate-400">FILTER:</span>
+          <div className="label-caps rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
+            ALL EVENTS
+          </div>
+        </div>
       </div>
 
-      <nav className="flex flex-wrap gap-1 border-b border-slate-700/50 px-3 py-2" role="tablist">
-        {channels.map((channel) => {
-          const Icon = CHANNEL_ICON[channel];
-          const count = logEvidence.filter((e) => e.channel === channel).length;
-          return (
-            <button
-              key={channel}
-              type="button"
-              role="tab"
-              aria-selected={tab === channel}
-              onClick={() => setTab(channel)}
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors',
-                tab === channel
-                  ? 'bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/40'
-                  : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200',
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" aria-hidden />
-              {CHANNEL_LABEL[channel]}
-              <span className="text-[10px] text-slate-500">({count})</span>
-            </button>
-          );
-        })}
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'raw'}
-          onClick={() => setTab('raw')}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors',
-            tab === 'raw'
-              ? 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/40'
-              : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200',
+      {/* The stream stays obsidian in both themes — analysts read telemetry on dark. */}
+      <div className="terminal-bg relative flex min-h-0 flex-grow flex-col overflow-hidden rounded-xl p-4 font-mono text-xs">
+        <div key={`${stepNumber}-${tab}`} className="scrollbar-hidden min-h-0 flex-grow space-y-2 overflow-y-auto pr-2">
+          {tab === 'raw' ? (
+            <pre className="whitespace-pre text-[11px] leading-relaxed text-brand-cyan/80">
+              {JSON.stringify(logEvidence, null, 2)}
+            </pre>
+          ) : (
+            visible.map((entry, index) => (
+              <LogRecord
+                key={`${entry.channel}-${entry.event_id}-${index}`}
+                entry={entry}
+                expanded={expanded === index}
+                onToggle={() => setExpanded(expanded === index ? null : index)}
+              />
+            ))
           )}
-        >
-          <Braces className="h-3.5 w-3.5" aria-hidden />
-          Raw JSON
-        </button>
-      </nav>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={`${stepNumber}-${tab}`}
-            initial={{ opacity: 0, x: -18 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 12 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="space-y-3"
-          >
-            {tab === 'raw' ? (
-              <SyntaxHighlighter
-                language="json"
-                style={oneDark}
-                showLineNumbers
-                customStyle={{
-                  margin: 0,
-                  borderRadius: '0.5rem',
-                  background: 'rgba(2, 6, 23, 0.75)',
-                  fontSize: '12px',
-                }}
-                lineNumberStyle={{ color: '#334155', minWidth: '2.25rem' }}
-              >
-                {JSON.stringify(logEvidence, null, 2)}
-              </SyntaxHighlighter>
-            ) : (
-              visible.map((entry, index) => {
-                const start = lineCursor;
-                lineCursor += Object.keys(entry.fields).length;
-                return <LogCard key={`${entry.channel}-${index}`} entry={entry} startLine={start} />;
-              })
-            )}
-          </motion.div>
-        </AnimatePresence>
+        </div>
+        <div className="pointer-events-none absolute bottom-0 left-0 h-12 w-full bg-gradient-to-t from-[#05070b] to-transparent" />
       </div>
     </section>
   );

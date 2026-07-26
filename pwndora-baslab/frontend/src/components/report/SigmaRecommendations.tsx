@@ -31,7 +31,7 @@ export function SigmaRecommendations({ rules }: { rules: SigmaRecommendation[] }
             >
               <FileCode2 className="h-4 w-4 shrink-0 text-cyan-400" aria-hidden />
               <span className="log-mono text-xs font-bold text-cyan-300">{rule.technique_id}</span>
-              <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{rule.title}</span>
+              <span className="min-w-0 flex-1 truncate text-sm text-slate-800 dark:text-slate-200">{rule.title}</span>
               <ChevronDown
                 className={cn(
                   'h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200',

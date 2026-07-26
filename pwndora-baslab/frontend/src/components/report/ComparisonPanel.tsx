@@ -30,7 +30,7 @@ function DeltaIndicator({ delta }: { delta: number }) {
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 font-bold text-slate-400">
+    <span className="inline-flex items-center gap-1 font-bold text-slate-600 dark:text-slate-400">
       <Minus className="h-3.5 w-3.5" aria-hidden />→ 0.0
     </span>
   );
@@ -52,7 +52,7 @@ export function ComparisonPanel({ comparison }: { comparison: ComparisonResult }
       <div className="grid gap-4 sm:grid-cols-3">
         <GlassPanel className="p-5 text-center">
           <div className="section-label">Run 1</div>
-          <div className="mt-1 log-mono text-3xl font-bold tabular-nums text-slate-200">
+          <div className="mt-1 log-mono text-3xl font-bold tabular-nums text-slate-800 dark:text-slate-200">
             {comparison.run_1_score.toFixed(2)}
           </div>
           <div className="mt-1 text-[11px] text-slate-500">
@@ -68,7 +68,7 @@ export function ComparisonPanel({ comparison }: { comparison: ComparisonResult }
           <div
             className={cn(
               'mt-1 log-mono text-3xl font-bold tabular-nums',
-              flat ? 'text-slate-300' : improved ? 'text-emerald-300' : 'text-red-300',
+              flat ? 'text-slate-700 dark:text-slate-300' : improved ? 'text-emerald-300' : 'text-red-300',
             )}
           >
             {improved ? '+' : ''}
@@ -145,12 +145,12 @@ export function ComparisonPanel({ comparison }: { comparison: ComparisonResult }
                     <span className="log-mono text-xs font-semibold text-cyan-300">
                       {row.technique_id}
                     </span>
-                    <span className="ml-2 text-xs text-slate-400">{row.technique_name}</span>
+                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">{row.technique_name}</span>
                   </td>
-                  <td className="px-3 py-2.5 text-right log-mono text-xs tabular-nums text-slate-300">
+                  <td className="px-3 py-2.5 text-right log-mono text-xs tabular-nums text-slate-700 dark:text-slate-300">
                     {(row.run_1_score * 100).toFixed(1)}
                   </td>
-                  <td className="px-3 py-2.5 text-right log-mono text-xs tabular-nums text-slate-100">
+                  <td className="px-3 py-2.5 text-right log-mono text-xs tabular-nums text-slate-900 dark:text-slate-100">
                     {(row.run_2_score * 100).toFixed(1)}
                   </td>
                   <td className="px-3 py-2.5 text-right log-mono text-xs tabular-nums">

@@ -14,11 +14,12 @@ interface GlowButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const VARIANTS: Record<Variant, string> = {
   primary:
-    'border-cyan-400/50 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25 hover:shadow-glow-cyan',
+    'border-brand-blue bg-brand-blue text-white hover:brightness-110 dark:border-cyan-400/50 dark:bg-cyan-500/15 dark:text-cyan-100 dark:hover:bg-cyan-500/25 dark:hover:shadow-glow-cyan',
   secondary:
     'border-amber-400/50 bg-amber-500/12 text-amber-100 hover:bg-amber-500/22 hover:shadow-glow-amber',
   danger: 'border-red-400/50 bg-red-500/12 text-red-100 hover:bg-red-500/22 hover:shadow-glow-red',
-  ghost: 'border-slate-600/60 bg-slate-800/40 text-slate-300 hover:bg-slate-700/50',
+  ghost:
+    'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-slate-600/60 dark:bg-slate-800/40 dark:text-slate-300 dark:hover:bg-slate-700/50',
 };
 
 export function GlowButton({

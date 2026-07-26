@@ -167,6 +167,18 @@
           "minLength": 1,
           "title": "Sigma Rule Yaml",
           "type": "string"
+        },
+        "response_rationale": {
+          "minLength": 1,
+          "title": "Response Rationale",
+          "type": "string"
+        },
+        "red_herring_explanations": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Red Herring Explanations",
+          "type": "object"
         }
       },
       "required": [
@@ -178,7 +190,8 @@
         "reference_indicators",
         "red_herring_indicators",
         "correct_response_action",
-        "sigma_rule_yaml"
+        "sigma_rule_yaml",
+        "response_rationale"
       ],
       "title": "Technique",
       "type": "object"

@@ -60,14 +60,19 @@ single-origin in dev exactly as it does in the container.
    - **B — Indicators:** checklist mixing that step's true indicators with plausible
      red herrings, in a session-specific order. Nothing marks which is which.
    - **C — Response:** one of seven containment actions.
-4. **Get graded** — an overlay reveals the technique, the per-part score breakdown,
-   which indicators you missed, which red herrings you fell for, and the Sigma rule
-   that would have caught it.
+4. **Get graded and coached** — an overlay reveals the technique, the per-part score
+   breakdown, which indicators you missed, which red herrings you fell for, and the
+   Sigma rule that would have caught it. The *Detection Coach* then explains, for each
+   of the three parts, what went wrong, why it happened and what habit prevents a
+   repeat (see *Detection Coach* below).
 5. **Advance** — the next technique stays locked until the current one is submitted
    (the API answers `403` if you try).
 6. **Report** — detection rate, per-technique control status, control gaps with
    remediation, Sigma rules to deploy, and the RiskView360 JSON export.
-7. **Run Again** — the second run links to the first, and the comparison view shows a
+7. **Watch the replay** — the report carries an *Attack Replay*: a play/pause
+   walkthrough of how the intrusion actually unfolded, stage by stage, marking which
+   stages you caught and what control would have stopped each one.
+8. **Run Again** — the second run links to the first, and the comparison view shows a
    per-technique delta table and grouped bar chart.
 
 ### Scoring
@@ -218,6 +223,86 @@ Two deliberate choices:
 The script refuses to overwrite the catalog if any playbook technique is absent from
 the release being ingested, so an upstream revocation fails the build loudly instead
 of leaving a technique the learner could never select.
+
+### Detection Coach — explaining the mistake, not just marking it
+
+Scoring says *what* was wrong. The coach says *why it happened* and *what to change*,
+which is the only part a learner can act on. Every graded step returns three
+diagnoses — one per decision part — each with a headline, a cause and a fix, plus a
+single takeaway drawn from whichever part cost the most marks.
+
+A learner who picks a Persistence technique for the phishing stage, ticks one decoy
+and under-responds gets:
+
+```
+TECHNIQUE   Wrong kill-chain phase: T1547.001 (Registry Run Keys / Startup Folder)
+            is Persistence; this stage is Initial Access.
+    why     You read this as persistence, but the evidence is about initial access:
+            ParentImage ends with 'WINWORD.EXE'.
+    fix     Before naming a technique, name the phase.
+
+INDICATORS  4 of 5 indicators missed and 1 decoy selected.
+    why     Everything you missed sits in command-line content, while you did read
+            process ancestry — the gap is a whole class of telemetry, not a detail.
+            Medium is the default integrity level for an ordinary user process;
+            elevation shows as High or System, so that option's reasoning is inverted.
+    fix     For each option ask whether the parenthetical claim is actually true.
+
+RESPONSE    You chose Alert SOC Only; the stage called for Isolate Host.
+    why     Alert SOC Only creates a ticket but changes nothing on the host. Code has
+            already executed from a document the user opened.
+    fix     Ask what the adversary keeps if you take your action.
+```
+
+Two layers produce this, and neither is a model:
+
+- **Derived** — the technique diagnosis compares the learner's pick against the real
+  one *using the MITRE catalog*: same tactic, same technique family, or wrong
+  kill-chain phase. That covers all 679 possible wrong answers without anyone having
+  to anticipate them. The indicator diagnosis classifies each indicator into a signal
+  family (process ancestry, command-line, network, file, registry, authentication,
+  cross-process access) and names the family the learner never read — a blind spot,
+  not a list.
+- **Authored** — 72 decoy explanations and 18 response rationales live in
+  `playbooks.json` beside the content they explain, because a misconception like
+  *"%%1936 means full administrator token"* deserves a precise correction rather than
+  a generated approximation.
+
+The same reasoning as the replay applies: deterministic, offline, and factually
+correct about Windows internals — three properties a bundled language model would
+have cost. The coach runs strictly *after* `evaluate_step` and never feeds back into
+it, so the score remains a pure function of the decision.
+
+### Attack Replay — and why it is not machine learning
+
+The report carries a play/pause walkthrough of how the intrusion unfolded, stage by
+stage. It is worth being explicit about what generates it, because "simulate the
+attack" sounds like a modelling problem and is not one here.
+
+Every hop shown is **read directly out of log fields the learner has already seen**:
+
+| Rendered as | Read from |
+| --- | --- |
+| `WINWORD.EXE spawned powershell.exe` | Sysmon EID 1 `ParentImage` → `Image`, Security EID 4688 `ParentProcessName` → `NewProcessName` |
+| `powershell.exe injected into explorer.exe` | Sysmon EID 8 `SourceImage` → `TargetImage`, `StartAddress` |
+| `explorer.exe accessed lsass.exe` | Sysmon EID 10 `TargetImage`, `GrantedAccess` |
+| `WS-FINANCE-04 authenticated to DC-CORP-01` | Security EID 4624 `IpAddress`, `WorkstationName`, `LogonType` |
+| `10.10.10.88 mounted \\*\ADMIN$` | Security EID 5140 `ShareName`, `ShareLocalPath` |
+
+That is parsing, not prediction. Consequences that matter for judging:
+
+- **Deterministic.** The same session always yields byte-identical replay JSON,
+  verified across all three playbooks — so it cannot undermine the scoring guarantee.
+- **Offline.** No model, no inference, no API call. `api/services/attack_replay.py`
+  imports nothing beyond the existing models.
+- **Unscored and read-only.** It is generated only for a *completed* run, from
+  evidence already revealed, and nothing on this path touches a score. The learner
+  never builds or orders anything — this is per-step feedback, deliberately not the
+  incident-reconstruction mechanic that belongs to DILE-02.
+
+```bash
+curl -s http://localhost:8000/api/session/$SID/replay   # 409 until the run completes
+```
 
 ### Playbook schema
 

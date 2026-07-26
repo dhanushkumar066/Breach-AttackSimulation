@@ -8,9 +8,12 @@ from api.models.playbook import (
     Technique,
 )
 from api.models.report import (
+    AttackReplay,
     ComparisonResult,
     ControlEffectivenessReport,
     ControlGap,
+    ReplayEdge,
+    ReplayStep,
     RiskView360Coverage,
     RiskView360Export,
     SessionScore,
@@ -34,6 +37,7 @@ from api.models.session import (
 
 __all__ = [
     "AdvanceResponse",
+    "AttackReplay",
     "ComparisonResult",
     "ControlEffectivenessReport",
     "ControlGap",
@@ -45,6 +49,8 @@ __all__ = [
     "Playbook",
     "PlaybookMeta",
     "RESPONSE_ACTIONS",
+    "ReplayEdge",
+    "ReplayStep",
     "ResponseAction",
     "RiskView360Coverage",
     "RiskView360Export",

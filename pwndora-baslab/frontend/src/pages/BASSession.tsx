@@ -1,17 +1,16 @@
-import { motion } from 'framer-motion';
 import { AlertCircle, X } from 'lucide-react';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Header } from '@/components/layout/Header';
+import { StatusBar } from '@/components/layout/StatusBar';
 import { StepProgress } from '@/components/layout/StepProgress';
 import { DetectionForm } from '@/components/session/DetectionForm';
 import { LogViewer } from '@/components/session/LogViewer';
 import { StepFeedback } from '@/components/session/StepFeedback';
-import { GlassPanel } from '@/components/ui/GlassPanel';
 import { useBASLabStore } from '@/store/useBASLabStore';
 
-/** The four-panel execution view: header, log console, decision form, progress rail. */
+/** Live execution view: telemetry header, log terminal, triage console, status bar. */
 export function BASSession() {
   const navigate = useNavigate();
   const sessionId = useBASLabStore((s) => s.sessionId);
@@ -29,7 +28,7 @@ export function BASSession() {
   // A hard refresh drops the in-memory session handle; send the learner back to
   // the library rather than rendering an empty console.
   useEffect(() => {
-    if (!sessionId) navigate('/', { replace: true });
+    if (!sessionId) navigate('/playbooks', { replace: true });
   }, [sessionId, navigate]);
 
   useEffect(() => {
@@ -44,53 +43,52 @@ export function BASSession() {
   if (!sessionId) return null;
 
   const isFinalStep = currentStepIndex === totalSteps - 1;
+  const host = logEvidence[0]?.computer;
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
+      <div className="mesh-gradient" />
+      <div className="cyber-grid" />
+
       <Header />
 
       {error ? (
-        <div className="px-4 pt-3 sm:px-6">
-          <GlassPanel tone="danger" className="flex items-center gap-3 px-4 py-2.5">
-            <AlertCircle className="h-4 w-4 shrink-0 text-red-400" aria-hidden />
-            <p className="flex-1 text-xs text-red-200">{error}</p>
+        <div className="shrink-0 px-4 pt-3 sm:px-8">
+          <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-2.5">
+            <AlertCircle className="h-4 w-4 shrink-0 text-red-500" aria-hidden />
+            <p className="flex-1 text-xs text-red-600 dark:text-red-300">{error}</p>
             <button
               type="button"
               onClick={clearError}
               aria-label="Dismiss error"
-              className="text-slate-400 hover:text-slate-200"
+              className="text-slate-400 transition-colors hover:text-slate-900 dark:hover:text-white"
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
-          </GlassPanel>
+          </div>
         </div>
       ) : null}
 
-      <main className="grid min-h-0 flex-1 gap-4 p-4 sm:p-6 lg:grid-cols-2">
-        <motion.div
-          key={`logs-${currentStepIndex}`}
-          initial={{ opacity: 0, x: -22 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.35, ease: 'easeOut' }}
-          className="min-h-0"
-        >
+      <main className="grid min-h-0 flex-grow gap-6 p-4 sm:p-8 lg:grid-cols-[60%_1fr]">
+        <div className="min-h-0">
           <LogViewer logEvidence={logEvidence} stepNumber={currentStepIndex + 1} />
-        </motion.div>
-
-        <motion.div
-          key={`form-${currentStepIndex}`}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.15 }}
-          className="min-h-0"
-        >
+        </div>
+        <div className="min-h-0">
           <DetectionForm />
-        </motion.div>
+        </div>
       </main>
 
-      <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+      <div className="shrink-0 px-4 pb-4 sm:px-8">
         <StepProgress />
       </div>
+
+      <StatusBar
+        host={host}
+        sessionId={sessionId}
+        connected={!error}
+        eventCount={logEvidence.length}
+        stepLabel={`STAGE ${currentStepIndex + 1} / ${totalSteps}`}
+      />
 
       <StepFeedback
         result={lastStepResult}

@@ -1,12 +1,175 @@
 import { motion } from 'framer-motion';
-import { AlertCircle, Layers, Play, Radar, ShieldHalf, Target } from 'lucide-react';
+import { AlertCircle, ArrowRight, CloudCog, Radio, Shield, ShieldAlert } from 'lucide-react';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { DifficultyBadge, TacticBadge } from '@/components/ui/CyberBadge';
-import { GlassPanel } from '@/components/ui/GlassPanel';
-import { GlowButton } from '@/components/ui/GlowButton';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { StatusBar } from '@/components/layout/StatusBar';
+import { TopNav } from '@/components/layout/TopNav';
+import { MagneticButton } from '@/components/ui/MagneticButton';
+import { TiltCard } from '@/components/ui/TiltCard';
+import { cn } from '@/lib/cn';
 import { useBASLabStore } from '@/store/useBASLabStore';
+import type { Difficulty, PlaybookMeta } from '@/types/baslab';
+
+const DIFFICULTY_STYLE: Record<Difficulty, string> = {
+  Easy: 'text-emerald-600 dark:text-emerald-400 bg-emerald-600/10 dark:bg-emerald-400/10 border-emerald-600/20 dark:border-emerald-400/20',
+  Moderate:
+    'text-emerald-600 dark:text-emerald-400 bg-emerald-600/10 dark:bg-emerald-400/10 border-emerald-600/20 dark:border-emerald-400/20',
+  Hard: 'text-orange-500 dark:text-orange-400 bg-orange-500/10 dark:bg-orange-400/10 border-orange-500/20 dark:border-orange-400/20',
+};
+
+const DIFFICULTY_DOT: Record<Difficulty, string> = {
+  Easy: 'bg-emerald-600 dark:bg-emerald-400',
+  Moderate: 'bg-emerald-600 dark:bg-emerald-400',
+  Hard: 'bg-orange-500 dark:bg-orange-400',
+};
+
+/** A distinct glyph per campaign so the three cards are separable at a glance. */
+const PLAYBOOK_ICON: Record<string, typeof Shield> = {
+  'pb-apt29-midnight-strike': Shield,
+  'pb-lockbit-killchain': ShieldAlert,
+  'pb-silent-web-breach': CloudCog,
+};
+
+function PlaybookCard({
+  playbook,
+  index,
+  recommended,
+  starting,
+  onStart,
+}: {
+  playbook: PlaybookMeta;
+  index: number;
+  recommended: boolean;
+  starting: boolean;
+  onStart: () => void;
+}) {
+  const Icon = PLAYBOOK_ICON[playbook.playbook_id] ?? Shield;
+
+  return (
+    <motion.div
+      className="h-full"
+      initial={{ y: 18, scale: 0.98 }}
+      animate={{ y: 0, scale: 1 }}
+      transition={{ duration: 0.6, delay: 0.15 + index * 0.1, ease: [0.16, 1, 0.3, 1] }}
+    >
+    <TiltCard
+      className="h-full"
+      innerClassName={cn(
+        'group relative flex h-full flex-col overflow-hidden rounded-2xl p-8 transition-all duration-500',
+        'backdrop-blur-xl',
+        recommended
+          ? 'border-2 border-brand-blue/40 bg-white/90 shadow-xl shadow-brand-blue/10 hover:border-brand-blue dark:border-brand-cyan/40 dark:bg-slate-900/60 dark:shadow-none lg:-translate-y-4 card-glow-cyan'
+          : 'border border-slate-200 bg-white/80 shadow-xl shadow-slate-200/50 hover:border-brand-blue/50 dark:border-white/10 dark:bg-slate-900/40 dark:shadow-none dark:hover:border-brand-cyan/50',
+      )}
+    >
+      {recommended ? (
+        <div className="absolute right-0 top-0 z-20 p-4">
+          <div className="rounded-bl-xl rounded-tr-xl bg-brand-blue px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-white shadow-lg dark:bg-brand-cyan dark:text-slate-900">
+            Recommended
+          </div>
+        </div>
+      ) : null}
+
+      <div className={cn('relative z-20 mb-8 flex items-start justify-between', recommended && 'pt-4')}>
+        <div
+          className={cn(
+            'rounded-xl border p-3 transition-colors',
+            recommended
+              ? 'border-brand-blue/30 bg-brand-blue/10 text-brand-blue dark:border-brand-cyan/40 dark:bg-brand-cyan/20 dark:text-brand-cyan'
+              : 'border-slate-200 bg-slate-100 text-slate-400 group-hover:bg-brand-blue/20 group-hover:text-brand-blue dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:group-hover:bg-brand-cyan/20 dark:group-hover:text-brand-cyan',
+          )}
+        >
+          <Icon className="h-5 w-5" aria-hidden />
+        </div>
+
+        <span
+          className={cn(
+            'flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em]',
+            DIFFICULTY_STYLE[playbook.difficulty],
+          )}
+        >
+          <span
+            className={cn(
+              'h-1.5 w-1.5 rounded-full',
+              DIFFICULTY_DOT[playbook.difficulty],
+              recommended && 'animate-pulse-glow',
+            )}
+          />
+          {playbook.difficulty}
+        </span>
+      </div>
+
+      <h3 className="relative z-20 mb-4 text-2xl font-bold tracking-tight text-slate-900 transition-colors group-hover:text-brand-blue dark:text-white dark:group-hover:text-brand-cyan">
+        {playbook.name}
+      </h3>
+
+      <p className="relative z-20 mb-8 flex-grow text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+        {playbook.description}
+      </p>
+
+      <div className="relative z-20 mb-8 space-y-6">
+        <div>
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+            Primary Tactics
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {playbook.tactics.slice(0, 4).map((tactic) => (
+              <span
+                key={tactic}
+                className={cn(
+                  'rounded-lg border px-3 py-1.5 font-mono text-[11px]',
+                  recommended
+                    ? 'border-brand-blue/30 bg-brand-blue/10 font-bold text-brand-blue dark:border-brand-cyan/30 dark:bg-brand-cyan/10 dark:text-brand-cyan'
+                    : 'border-slate-200 bg-slate-50 text-brand-blue dark:border-white/5 dark:bg-white/5 dark:text-brand-cyan',
+                )}
+              >
+                {tactic}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+            Techniques
+          </span>
+          <span className="font-mono text-sm font-bold text-slate-900 dark:text-white">
+            {playbook.technique_count} techniques
+          </span>
+        </div>
+      </div>
+
+      <div className="relative z-20 mt-auto border-t border-slate-200 pt-8 dark:border-white/5">
+        <MagneticButton
+          onClick={onStart}
+          disabled={starting}
+          className={cn(
+            'flex w-full items-center justify-center gap-3 rounded-xl py-4 text-[11px] font-bold uppercase tracking-widest transition-all duration-300',
+            'disabled:cursor-not-allowed disabled:opacity-60',
+            recommended
+              ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/30 hover:brightness-110 dark:bg-brand-cyan dark:text-slate-900'
+              : 'border border-brand-blue text-brand-blue hover:bg-brand-blue hover:text-white dark:border-brand-cyan dark:text-brand-cyan dark:hover:bg-brand-cyan dark:hover:text-slate-900',
+          )}
+        >
+          {starting ? (
+            <>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Initializing…
+            </>
+          ) : (
+            <>
+              Start Simulation
+              {recommended ? <ArrowRight className="h-4 w-4" aria-hidden /> : null}
+            </>
+          )}
+        </MagneticButton>
+      </div>
+    </TiltCard>
+    </motion.div>
+  );
+}
 
 export function PlaybookSelector() {
   const navigate = useNavigate();
@@ -31,108 +194,79 @@ export function PlaybookSelector() {
     if (started) navigate('/session');
   }
 
+  // The middle card carries the recommendation, matching the reference layout.
+  const recommendedIndex = playbooks.length > 1 ? 1 : 0;
+
   return (
-    <div className="relative min-h-screen grid-noise">
-      <div className="relative z-10 mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+    <div className="flex min-h-screen flex-col">
+      <div className="mesh-gradient" />
+      <div className="cyber-grid" />
+
+      <TopNav active="Playbooks" />
+      <Sidebar active="Playbooks" />
+
+      <main className="flex-grow px-4 pb-16 pt-32 lg:pl-72 lg:pr-8">
         <motion.header
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45 }}
-          className="mb-10 text-center"
+          className="mb-12 max-w-6xl"
+          initial={{ y: 18 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.6, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
         >
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/8 px-4 py-1.5">
-            <Radar className="h-4 w-4 animate-pulse-glow text-cyan-400" aria-hidden />
-            <span className="text-xs font-semibold tracking-[0.2em] text-cyan-300">
-              BLACKPERL DFIR · PWNDORA
+          <div className="mb-4 flex items-center gap-3">
+            <span className="h-[2px] w-12 bg-brand-blue dark:bg-brand-cyan" />
+            <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-brand-blue dark:text-brand-cyan">
+              Simulation Selection
             </span>
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-slate-50 sm:text-5xl">
-            BAS<span className="text-cyan-400 text-glow-cyan">Lab</span>
+          <h1 className="mb-4 text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
+            Select a Breach Playbook
           </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-slate-400">
-            Breach &amp; Attack Simulation training. Each playbook replays a real adversary kill
-            chain one technique at a time. You see only the telemetry — identify the technique,
-            pick out the true indicators, and choose the right containment action.
+          <p className="max-w-2xl text-lg font-medium leading-relaxed text-slate-600 dark:text-slate-400">
+            Choose a validated threat profile to begin your blue-team detection training. Each
+            playbook simulates real-world adversary behavior mapped to the MITRE ATT&amp;CK
+            framework.
           </p>
         </motion.header>
 
         {error ? (
-          <GlassPanel tone="danger" className="mb-6 flex items-center gap-3 p-4">
-            <AlertCircle className="h-5 w-5 shrink-0 text-red-400" aria-hidden />
-            <p className="text-sm text-red-200">{error}</p>
-          </GlassPanel>
+          <div className="mb-8 flex max-w-3xl items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3">
+            <AlertCircle className="h-5 w-5 shrink-0 text-red-500" aria-hidden />
+            <p className="text-sm text-red-600 dark:text-red-300">{error}</p>
+          </div>
         ) : null}
 
         {loading ? (
-          <div className="grid gap-5 md:grid-cols-3">
+          <section className="grid max-w-7xl grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
             {[0, 1, 2].map((i) => (
-              <GlassPanel key={i} className="h-72 animate-pulse p-6">
-                <div className="h-4 w-1/2 rounded bg-slate-700/50" />
-                <div className="mt-4 h-3 w-full rounded bg-slate-800/60" />
-                <div className="mt-2 h-3 w-4/5 rounded bg-slate-800/60" />
-              </GlassPanel>
+              <div
+                key={i}
+                className="h-[520px] animate-pulse rounded-2xl border border-slate-200 bg-white/60 dark:border-white/10 dark:bg-slate-900/40"
+              />
             ))}
-          </div>
+          </section>
         ) : (
-          <div className="grid gap-5 md:grid-cols-3">
+          <section className="grid max-w-7xl grid-cols-1 items-stretch gap-8 md:grid-cols-2 xl:grid-cols-3">
             {playbooks.map((playbook, index) => (
-              <motion.div
+              <PlaybookCard
                 key={playbook.playbook_id}
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-                whileHover={{ scale: 1.02 }}
-                className="h-full"
-              >
-                <GlassPanel className="flex h-full flex-col p-5 transition-shadow hover:shadow-glow-cyan">
-                  <div className="mb-3 flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Target className="h-4 w-4 shrink-0 text-amber-400" aria-hidden />
-                      <span className="text-xs font-bold tracking-wider text-amber-300">
-                        {playbook.threat_actor}
-                      </span>
-                    </div>
-                    <DifficultyBadge difficulty={playbook.difficulty} />
-                  </div>
-
-                  <h2 className="text-lg font-bold leading-snug text-slate-50">{playbook.name}</h2>
-
-                  <p className="mt-2 flex-1 text-xs leading-relaxed text-slate-400">
-                    {playbook.description}
-                  </p>
-
-                  <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
-                    <Layers className="h-3.5 w-3.5 text-cyan-400" aria-hidden />
-                    <span className="font-semibold text-slate-200">{playbook.technique_count}</span>
-                    techniques
-                    <ShieldHalf className="ml-2 h-3.5 w-3.5 text-cyan-400" aria-hidden />
-                    <span className="font-semibold text-slate-200">{playbook.tactics.length}</span>
-                    tactics
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {playbook.tactics.map((tactic) => (
-                      <TacticBadge key={tactic} tactic={tactic} />
-                    ))}
-                  </div>
-
-                  <GlowButton
-                    className="mt-5 w-full"
-                    onClick={() => void launch(playbook.playbook_id)}
-                    loading={stepStatus === 'loading' && selectedPlaybookId === playbook.playbook_id}
-                    icon={<Play className="h-4 w-4" aria-hidden />}
-                  >
-                    Start Simulation
-                  </GlowButton>
-                </GlassPanel>
-              </motion.div>
+                playbook={playbook}
+                index={index}
+                recommended={index === recommendedIndex}
+                starting={stepStatus === 'loading' && selectedPlaybookId === playbook.playbook_id}
+                onStart={() => void launch(playbook.playbook_id)}
+              />
             ))}
-          </div>
+          </section>
         )}
 
-        <footer className="mt-12 text-center text-[11px] text-slate-600">
+        <p className="mt-12 flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-600">
+          <Radio className="h-3 w-3" aria-hidden />
           Track T-03 EPME · Problem Statement BSCDS26-EPME-02 · BrewingSec CyberDev Summit 2026
-        </footer>
+        </p>
+      </main>
+
+      <div className="lg:pl-64">
+        <StatusBar connected={!error} stepLabel={`${playbooks.length} PLAYBOOKS LOADED`} />
       </div>
     </div>
   );

@@ -113,6 +113,71 @@ class RiskView360Export(BaseModel):
     recommended_training: list[str]
 
 
+#: The causal relation a log record evidences. Every value is read straight out of
+#: log fields — nothing here is inferred or predicted.
+EdgeKind = Literal[
+    "spawn",
+    "inject",
+    "access",
+    "file",
+    "registry",
+    "network",
+    "logon",
+    "share",
+    "service",
+    "load",
+]
+
+
+class ReplayEdge(BaseModel):
+    """One causal hop: a process spawning another, a host reaching a host, and so on."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: EdgeKind
+    source: str
+    target: str
+    detail: str
+    channel: str
+    event_id: int
+
+
+class ReplayStep(BaseModel):
+    """One kill-chain stage of the replay, with how the learner fared on it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    step: int
+    technique_id: str
+    technique_name: str
+    tactic: str
+    narrative: str
+    timestamp: str
+    hosts: list[str]
+    edges: list[ReplayEdge]
+    detected: bool
+    control_status: ControlStatus
+    countermeasure: str
+    sigma_rule_title: str
+
+
+class AttackReplay(BaseModel):
+    """GET /api/session/{session_id}/replay — read-only teaching walkthrough."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: str
+    playbook_id: str
+    playbook_name: str
+    threat_actor: str
+    total_steps: int
+    techniques_detected: int
+    first_seen: str
+    last_seen: str
+    hosts: list[str]
+    steps: list[ReplayStep]
+
+
 class TechniqueDelta(BaseModel):
     """Per-technique score movement between two runs of the same playbook."""
 

@@ -3,6 +3,7 @@ import {
   AlertCircle,
   Download,
   FileJson,
+  Film,
   GitCompareArrows,
   Home,
   RefreshCw,
@@ -12,6 +13,7 @@ import {
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { AttackReplay } from '@/components/report/AttackReplay';
 import { GapSummary } from '@/components/report/GapSummary';
 import { SigmaRecommendations } from '@/components/report/SigmaRecommendations';
 import { TechniqueResultRow } from '@/components/report/TechniqueResultRow';
@@ -39,20 +41,23 @@ export function ReportPage() {
   const sessionId = useBASLabStore((s) => s.sessionId);
   const report = useBASLabStore((s) => s.report);
   const reportLoading = useBASLabStore((s) => s.reportLoading);
+  const replay = useBASLabStore((s) => s.replay);
   const error = useBASLabStore((s) => s.error);
   const baseSessionId = useBASLabStore((s) => s.baseSessionId);
   const loadReport = useBASLabStore((s) => s.loadReport);
+  const loadReplay = useBASLabStore((s) => s.loadReplay);
   const startSession = useBASLabStore((s) => s.startSession);
 
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (!sessionId) {
-      navigate('/', { replace: true });
+      navigate('/playbooks', { replace: true });
       return;
     }
     void loadReport();
-  }, [sessionId, loadReport, navigate]);
+    void loadReplay();
+  }, [sessionId, loadReport, loadReplay, navigate]);
 
   async function downloadRiskView360() {
     if (!sessionId) return;
@@ -79,12 +84,12 @@ export function ReportPage() {
             <>
               <AlertCircle className="mx-auto h-6 w-6 text-red-400" aria-hidden />
               <p className="mt-3 text-sm text-red-200">{error}</p>
-              <GlowButton className="mt-4" variant="ghost" onClick={() => navigate('/')}>
+              <GlowButton className="mt-4" variant="ghost" onClick={() => navigate('/playbooks')}>
                 Back to playbooks
               </GlowButton>
             </>
           ) : (
-            <p className="animate-pulse text-sm text-slate-400">
+            <p className="animate-pulse text-sm text-slate-600 dark:text-slate-400">
               Generating Control Effectiveness Report…
             </p>
           )}
@@ -103,8 +108,8 @@ export function ReportPage() {
           className="mb-8"
         >
           <div className="section-label">Control Effectiveness Report</div>
-          <h1 className="mt-1 text-3xl font-bold text-slate-50">{report.playbook_name}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+          <h1 className="mt-1 text-3xl font-bold text-slate-900 dark:text-slate-50">{report.playbook_name}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
             <CyberBadge tone="amber">
               <Target className="h-3 w-3" aria-hidden />
               {report.threat_actor}
@@ -181,7 +186,7 @@ export function ReportPage() {
           ) : null}
           <GlowButton
             variant="ghost"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/playbooks')}
             icon={<Home className="h-4 w-4" aria-hidden />}
           >
             Playbook library
@@ -190,7 +195,7 @@ export function ReportPage() {
 
         {/* Technique table */}
         <section className="mb-8">
-          <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-slate-100">
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
             Technique-by-technique results
           </h2>
           <GlassPanel className="overflow-hidden">
@@ -218,9 +223,25 @@ export function ReportPage() {
           </GlassPanel>
         </section>
 
+        {/* Attack replay */}
+        {replay ? (
+          <section className="mb-8">
+            <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+              <Film className="h-5 w-5 text-cyan-400" aria-hidden />
+              How the attack unfolded
+            </h2>
+            <p className="mb-3 text-xs text-slate-500">
+              A step-by-step walkthrough rebuilt from the same telemetry you just worked
+              through &mdash; process ancestry, cross-process access and host-to-host movement.
+              Read-only: nothing here changed your score.
+            </p>
+            <AttackReplay replay={replay} />
+          </section>
+        ) : null}
+
         {/* Gaps */}
         <section className="mb-8">
-          <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-slate-100">
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
             <ShieldAlert className="h-5 w-5 text-red-400" aria-hidden />
             Security control gaps
           </h2>
@@ -229,7 +250,7 @@ export function ReportPage() {
 
         {/* Sigma */}
         <section className="mb-10">
-          <h2 className="mb-3 text-lg font-bold text-slate-100">Sigma rules to deploy</h2>
+          <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-slate-100">Sigma rules to deploy</h2>
           <SigmaRecommendations rules={report.sigma_recommendations} />
         </section>
 

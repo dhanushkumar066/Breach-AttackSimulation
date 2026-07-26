@@ -13,7 +13,7 @@ export function GapSummary({ gaps }: { gaps: ControlGap[] }) {
         <ShieldCheck className="h-6 w-6 shrink-0 text-emerald-400" aria-hidden />
         <div>
           <h3 className="text-sm font-bold text-emerald-300">No control gaps identified</h3>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-600 dark:text-slate-400">
             Every technique in this playbook was detected with an effective response. Re-run a
             harder playbook to keep pressure-testing your coverage.
           </p>
@@ -27,19 +27,19 @@ export function GapSummary({ gaps }: { gaps: ControlGap[] }) {
       {gaps.map((gap, index) => (
         <motion.div
           key={`${gap.technique_id}-${index}`}
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: 14 }}
+          animate={{ y: 0 }}
           transition={{ duration: 0.3, delay: index * 0.06 }}
         >
           <GlassPanel tone="danger" className="p-4">
             <div className="flex flex-wrap items-center gap-2">
               <ShieldAlert className="h-4 w-4 shrink-0 text-red-400" aria-hidden />
               <span className="log-mono text-sm font-bold text-red-300">{gap.technique_id}</span>
-              <span className="text-sm font-semibold text-slate-100">{gap.technique_name}</span>
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{gap.technique_name}</span>
               <TacticBadge tactic={gap.tactic} />
             </div>
 
-            <p className="mt-2 text-xs leading-relaxed text-slate-300">
+            <p className="mt-2 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
               <span className="section-label mr-1.5">Gap</span>
               {gap.gap_reason}
             </p>
@@ -50,7 +50,7 @@ export function GapSummary({ gaps }: { gaps: ControlGap[] }) {
             </div>
 
             <p className="mt-2 text-[11px] text-slate-500">
-              Detection content: <span className="text-slate-400">{gap.sigma_rule_title}</span>
+              Detection content: <span className="text-slate-600 dark:text-slate-400">{gap.sigma_rule_title}</span>
             </p>
           </GlassPanel>
         </motion.div>

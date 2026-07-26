@@ -17,7 +17,7 @@ export function TechniqueResultRow({ result }: { result: TechniqueResult }) {
       <td className="px-3 py-3 text-center log-mono text-xs text-slate-500">{result.step}</td>
       <td className="px-3 py-3">
         <div className="log-mono text-sm font-semibold text-cyan-300">{result.technique_id}</div>
-        <div className="text-xs text-slate-300">{result.technique_name}</div>
+        <div className="text-xs text-slate-700 dark:text-slate-300">{result.technique_name}</div>
         {!result.detected ? (
           <div className="mt-1 log-mono text-[11px] text-red-400">
             you answered {result.learner_technique_id}
@@ -34,7 +34,7 @@ export function TechniqueResultRow({ result }: { result: TechniqueResult }) {
           <X className="mx-auto h-4 w-4 text-red-400" aria-label="missed" />
         )}
       </td>
-      <td className="px-3 py-3 text-center log-mono text-xs text-slate-300">
+      <td className="px-3 py-3 text-center log-mono text-xs text-slate-700 dark:text-slate-300">
         {result.indicator_jaccard.toFixed(4)}
       </td>
       <td className="px-3 py-3 text-center">

@@ -60,6 +60,31 @@ class WeightedBreakdown(BaseModel):
     response_contribution: float
 
 
+class CoachNote(BaseModel):
+    """One diagnosed mistake, in the shape a tutor would explain it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    part: Literal["technique", "indicators", "response"]
+    severity: Literal["correct", "partial", "error"]
+    #: What happened, in one line.
+    headline: str
+    #: Why it happened — the reasoning error, not just the wrong value.
+    why: str
+    #: The transferable habit that prevents a repeat.
+    fix: str
+
+
+class Coaching(BaseModel):
+    """Post-submission diagnosis of a learner's three-part decision."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    notes: list[CoachNote] = Field(default_factory=list)
+    #: One rule of thumb to carry into the next step.
+    takeaway: str = ""
+
+
 class StepResult(BaseModel):
     """Deterministic evaluation of one step, including the revealed answer key."""
 
@@ -86,6 +111,8 @@ class StepResult(BaseModel):
     false_positive_indicators: list[str]
     sigma_rule_yaml: str
     sigma_rule_title: str
+    #: Attached by the coach after scoring; never influences the score itself.
+    coaching: Coaching | None = None
 
 
 class SessionState(BaseModel):

@@ -8,6 +8,7 @@
 
 import type {
   AdvanceResponse,
+  AttackReplay,
   ComparisonResult,
   ControlEffectivenessReport,
   EvaluateRequest,
@@ -134,7 +135,12 @@ export function getRiskView360Export(sessionId: string): Promise<RiskView360Expo
   );
 }
 
-/** 10. Compare two completed runs of the same playbook. */
+/** 10. Kill-chain replay of how the intrusion unfolded (completed runs only). */
+export function getAttackReplay(sessionId: string): Promise<AttackReplay> {
+  return request<AttackReplay>(`/session/${encodeURIComponent(sessionId)}/replay`);
+}
+
+/** 11. Compare two completed runs of the same playbook. */
 export function getComparison(
   sessionId: string,
   compareWith: string,

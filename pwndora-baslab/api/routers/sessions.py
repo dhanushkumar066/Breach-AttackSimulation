@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Query, status
 
 from api.models.report import (
+    AttackReplay,
     ComparisonResult,
     ControlEffectivenessReport,
     RiskView360Export,
@@ -35,6 +36,8 @@ from api.models.session import (
     StepResponse,
 )
 from api.services import report_generator
+from api.services.attack_replay import build_attack_replay
+from api.services.coach import build_coaching
 from api.services.scoring_engine import evaluate_step, running_score
 from api.services.session_manager import catalog, session_manager
 
@@ -178,6 +181,14 @@ def evaluate(session_id: str, payload: EvaluateRequest) -> EvaluateResponse:
     )
     result = evaluate_step(decision, technique, step_index=state.current_step_index)
 
+    # Diagnosis runs after scoring and never feeds back into it, so the score stays a
+    # pure function of the decision.
+    picked = next(
+        (t for t in catalog.list_mitre_techniques() if t.id == decision.technique_id),
+        None,
+    )
+    result.coaching = build_coaching(result, technique, picked)
+
     state.step_results.append(result)
     state.step_status = "submitted"
     session_manager.update_session(state)
@@ -260,6 +271,34 @@ def export_riskview360(session_id: str) -> RiskView360Export:
             detail="session is still in progress; complete the playbook before exporting",
         )
     return report_generator.build_riskview360_export(state)
+
+
+@router.get(
+    "/{session_id}/replay",
+    response_model=AttackReplay,
+    summary="Kill-chain replay of how the intrusion unfolded",
+)
+def get_replay(session_id: str) -> AttackReplay:
+    """Read-only walkthrough of the attack, for study after the run.
+
+    Derived entirely from log fields the learner has already seen — process
+    ancestry, cross-process access and host-to-host movement — so it adds no new
+    information and cannot influence any score. Available only once the run is
+    complete, which is the point at which every technique has already been revealed.
+    """
+    state = _load_session(session_id)
+    if not state.completed:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="the replay unlocks once the playbook is complete",
+        )
+    playbook = catalog.get_playbook(state.playbook_id)
+    if playbook is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="session references a playbook that is no longer present",
+        )
+    return build_attack_replay(state, playbook)
 
 
 @router.get(

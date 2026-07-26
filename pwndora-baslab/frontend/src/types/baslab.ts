@@ -54,6 +54,22 @@ export interface WeightedBreakdown {
   response_contribution: number;
 }
 
+export type CoachPart = 'technique' | 'indicators' | 'response';
+export type CoachSeverity = 'correct' | 'partial' | 'error';
+
+export interface CoachNote {
+  part: CoachPart;
+  severity: CoachSeverity;
+  headline: string;
+  why: string;
+  fix: string;
+}
+
+export interface Coaching {
+  notes: CoachNote[];
+  takeaway: string;
+}
+
 export interface StepResult {
   step_index: number;
   step_score: number;
@@ -74,6 +90,7 @@ export interface StepResult {
   false_positive_indicators: string[];
   sigma_rule_yaml: string;
   sigma_rule_title: string;
+  coaching: Coaching | null;
 }
 
 export interface StepResponse {
@@ -183,6 +200,55 @@ export interface RiskView360Export {
   attack_coverage: RiskView360Coverage[];
   control_gaps: ControlGap[];
   recommended_training: string[];
+}
+
+export type EdgeKind =
+  | 'spawn'
+  | 'inject'
+  | 'access'
+  | 'file'
+  | 'registry'
+  | 'network'
+  | 'logon'
+  | 'share'
+  | 'service'
+  | 'load';
+
+export interface ReplayEdge {
+  kind: EdgeKind;
+  source: string;
+  target: string;
+  detail: string;
+  channel: string;
+  event_id: number;
+}
+
+export interface ReplayStep {
+  step: number;
+  technique_id: string;
+  technique_name: string;
+  tactic: string;
+  narrative: string;
+  timestamp: string;
+  hosts: string[];
+  edges: ReplayEdge[];
+  detected: boolean;
+  control_status: ControlStatus;
+  countermeasure: string;
+  sigma_rule_title: string;
+}
+
+export interface AttackReplay {
+  session_id: string;
+  playbook_id: string;
+  playbook_name: string;
+  threat_actor: string;
+  total_steps: number;
+  techniques_detected: number;
+  first_seen: string;
+  last_seen: string;
+  hosts: string[];
+  steps: ReplayStep[];
 }
 
 export interface TechniqueDelta {

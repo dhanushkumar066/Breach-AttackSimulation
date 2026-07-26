@@ -47,6 +47,8 @@ inside the PWNDORA shell, and it is always an explicit origin list.
 | Services | `services/session_manager.py` | `PlaybookCatalog` (load + validate + project) and `SessionManager` (bounded in-memory store) |
 | | `services/scoring_engine.py` | `evaluate_step`, `aggregate_session_score`, `running_score`, `control_status` |
 | | `services/report_generator.py` | `build_report`, `build_riskview360_export`, `build_comparison` |
+| | `services/attack_replay.py` | `build_attack_replay` — derives causal edges from log fields |
+| | `services/coach.py` | `build_coaching` — diagnoses why a decision was wrong; runs after scoring, never feeds back into it |
 | Models | `models/playbook.py` | `LogEntry`, `Technique`, `Playbook`, `PlaybookMeta`, `MitreTechnique`, `PlaybookLibrary` |
 | | `models/session.py` | `Decision`, `StepResult`, `SessionState`, request/response DTOs |
 | | `models/report.py` | `TechniqueResult`, `ControlGap`, `ControlEffectivenessReport`, `RiskView360Export`, `ComparisonResult` |

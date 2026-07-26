@@ -11,6 +11,7 @@ import { immer } from 'zustand/middleware/immer';
 import * as api from '@/api/client';
 import { ApiError } from '@/api/client';
 import type {
+  AttackReplay,
   ComparisonResult,
   ControlEffectivenessReport,
   LogEntry,
@@ -55,6 +56,9 @@ interface BASLabState {
   sessionComplete: boolean;
   report: ControlEffectivenessReport | null;
   reportLoading: boolean;
+  /** Read-only kill-chain walkthrough, fetched alongside the report. */
+  replay: AttackReplay | null;
+  replayLoading: boolean;
 
   // ATT&CK techniques for the Part A dropdown
   mitreOptions: MitreTechnique[];
@@ -82,6 +86,7 @@ interface BASLabState {
   submitDetection: () => Promise<void>;
   advanceStep: () => Promise<'next' | 'completed' | 'error'>;
   loadReport: () => Promise<void>;
+  loadReplay: () => Promise<void>;
   loadComparison: (sessionId: string, compareWith: string) => Promise<void>;
   hideFeedback: () => void;
   clearError: () => void;
@@ -127,6 +132,8 @@ export const useBASLabStore = create<BASLabState>()(
     sessionComplete: false,
     report: null,
     reportLoading: false,
+    replay: null,
+    replayLoading: false,
 
     mitreOptions: [],
     mitreLoading: false,
@@ -206,6 +213,7 @@ export const useBASLabStore = create<BASLabState>()(
           s.feedbackVisible = false;
           s.sessionComplete = false;
           s.report = null;
+          s.replay = null;
           s.comparisonData = null;
         });
         return true;
@@ -330,6 +338,28 @@ export const useBASLabStore = create<BASLabState>()(
       }
     },
 
+    async loadReplay() {
+      const { sessionId } = get();
+      if (!sessionId) return;
+      set((s) => {
+        s.replayLoading = true;
+      });
+      try {
+        const replay = await api.getAttackReplay(sessionId);
+        set((s) => {
+          s.replay = replay;
+          s.replayLoading = false;
+        });
+      } catch (error) {
+        // The replay is supplementary: a failure here must not blank the report.
+        set((s) => {
+          s.replayLoading = false;
+          s.replay = null;
+        });
+        console.warn('attack replay unavailable:', describe(error));
+      }
+    },
+
     async loadComparison(sessionId, compareWith) {
       set((s) => {
         s.comparisonLoading = true;
@@ -384,6 +414,7 @@ export const useBASLabStore = create<BASLabState>()(
         s.feedbackVisible = false;
         s.sessionComplete = false;
         s.report = null;
+        s.replay = null;
         s.comparisonData = null;
         s.error = null;
         s.submitting = false;
